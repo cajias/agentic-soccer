@@ -1,0 +1,15 @@
+{"ts":"2026-05-30T21:23:50.391Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":""}
+{"ts":"2026-05-30T21:23:55.218Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":""}
+{"ts":"2026-05-30T21:24:48.009Z","hook":"dangerous-cmd-block","action":"block","matched":"rm -rf /","command":"rm -rf /tmp/lint-configs && git clone --depth 1 https://github.com/cajias/lint-configs /tmp/lint-configs 2>&1 | tail -3 && echo \"===FILES===\" && find /tmp/lint-configs -maxdepth 2 -type f \\( -name \"*.toml\" -o -name \"*.ini\" -o -name \"*.cfg\" -o -name \"*ruff*\" -o -name \"*mypy*\" -o -name \"*.yml\" -o -name \"*.yaml\" \\) -not -path \"*/.git/*\""}
+{"ts":"2026-05-30T21:27:25.110Z","hook":"scout-block","action":"block","tool":"Bash","path":"/tmp/uv_sync_agentic.log","matched":"/tmp/uv_sync_agentic.log"}
+{"ts":"2026-05-30T21:28:17.062Z","hook":"scout-block","action":"block","tool":"Bash","path":"/tmp/gfootball_install.log","matched":"/tmp/gfootball_install.log"}
+{"ts":"2026-05-30T21:29:12.560Z","hook":"scout-block","action":"block","tool":"Bash","path":"./gfootball_install.log","matched":"gfootball_install.log"}
+{"ts":"2026-05-30T21:31:24.952Z","hook":"scout-block","action":"block","tool":"Read","path":"/Users/rc/Projects/workspace/agentic-soccer/.venv/bin/python","matched":".venv/bin/python"}
+{"ts":"2026-05-30T21:31:46.346Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":""}
+{"ts":"2026-05-30T21:32:03.421Z","hook":"dev-rules-reminder","action":"inject","iterationCount":0}
+{"ts":"2026-05-30T21:32:03.457Z","hook":"iteration-context","action":"skip","iterationCount":1}
+{"ts":"2026-05-30T21:32:03.891Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":""}
+{"ts":"2026-05-30T21:32:46.583Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":""}
+{"ts":"2026-05-30T21:36:39.778Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/lib/python3.12/site-packages/","matched":".venv/lib/python3.12/site-packages"}
+{"ts":"2026-05-30T21:36:49.529Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/bin/python","matched":".venv/bin/python"}
+{"ts":"2026-05-30T21:39:41.011Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/.lock","matched":".venv/.lock"}

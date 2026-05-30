@@ -1,0 +1,77 @@
+# Lint configuration copied from github.com/cajias/lint-configs (python/ruff.toml),
+# adapted: target-version py39 -> py312, known-first-party set to this project's
+# packages. Kept in a standalone file so it does not collide with the gfootball
+# build config in pyproject.toml's [tool.uv] block.
+
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # Pyflakes (unused imports F401, unused variables F841)
+    "I",     # isort (import sorting)
+    "B",     # flake8-bugbear (common bugs)
+    "W",     # pycodestyle warnings
+    "C90",   # McCabe complexity
+    "SIM",   # flake8-simplify
+    "PIE",   # flake8-pie
+    "PLR",   # Pylint refactoring
+    "RET",   # flake8-return
+    "ANN",   # flake8-annotations (require type hints)
+    "UP",    # pyupgrade
+    "D",     # pydocstyle (docstring conventions)
+    "N",     # pep8-naming
+    "S",     # flake8-bandit (security issues)
+    "BLE",   # flake8-blind-except
+    "A",     # flake8-builtins
+    "COM",   # flake8-commas
+    "C4",    # flake8-comprehensions
+    "DTZ",   # flake8-datetimez
+    "T10",   # flake8-debugger
+    "EM",    # flake8-errmsg
+    "ISC",   # flake8-implicit-str-concat
+    "ICN",   # flake8-import-conventions
+    "G",     # flake8-logging-format
+    "INP",   # flake8-no-pep420
+    "PT",    # flake8-pytest-style
+    "Q",     # flake8-quotes
+    "RSE",   # flake8-raise
+    "SLOT",  # flake8-slots
+    "TID",   # flake8-tidy-imports
+    "TCH",   # flake8-type-checking
+    "ARG",   # flake8-unused-arguments
+    "PTH",   # flake8-use-pathlib
+    "ERA",   # eradicate (dead code detection)
+    "PGH",   # pygrep-hooks
+    "PL",    # Pylint
+    "TRY",   # tryceratops
+    "FLY",   # flynt
+    "PERF",  # Perflint
+    "RUF",   # Ruff-specific rules
+]
+ignore = [
+    "E203",  # Whitespace before ':' (conflicts with Black)
+    "E501",  # Line too long (handled by formatter)
+]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "ANN001", "ANN201", "PLR2004", "PLR0913"]
+"**/test_*.py" = ["S101", "ANN001", "ANN201", "PLR2004", "PLR0913"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.isort]
+known-first-party = ["simulator", "mcp_server", "agents", "replay"]
+force-single-line = false
+lines-after-imports = 2
