@@ -1,118 +1,123 @@
-"""Player personality profiles, keyed by squad index (0-10) per team.
+"""Roster and coach configuration for the agent layer.
 
-The squad index lines up with the shared role contract used across the project
-(``replay.logger.ROLES`` and ``simulator.narrator.ROLE_LABELS``):
+Player IDs use the ``{name}_{role}`` form the ``.claude/agents/player-*.md`` files
+declare (e.g. ``salah_rw``). Each entry records the squad ``player_index`` (0-10,
+matching ``simulator.narrator`` / ``replay.logger``), the ``agent_file`` whose body
+is used as the LLM system prompt, the ``team``, and an ``expected_zone`` band used
+by the coach's heuristic fallback when the LLM is unavailable.
 
-    0=GK 1=CB 2=CB 3=LB 4=RB 5=CM 6=CM 7=CM 8=LW 9=RW 10=ST
-
-Each profile carries an ``expected_zone`` band the coach uses to detect a player
-drifting out of position, plus free-text ``traits``/``tendency`` that flavor the
-prompt handed to the player sub-agent.
+System prompts are loaded from the agent ``.md`` files at runtime via
+:func:`load_system_prompt` (YAML frontmatter stripped). If a file is missing the
+caller falls back to a built-in default, so the agents never hard-fail when the
+``.claude/agents`` directory is not present.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 
-# Coarse pitch bands a role is "supposed" to occupy, in the team's
-# attacking-toward-+x frame (the same frame the narrator reports in).
+
+# Pitch bands a role should occupy (team's attacking-toward-+x frame).
 ZONE_DEFENSIVE = "defensive"
 ZONE_MIDFIELD = "midfield"
 ZONE_ATTACKING = "attacking"
 
-# Role label per squad index — must match simulator.narrator.ROLE_LABELS so the
-# coach can line personalities up with parsed narrator lines.
-_ROLE_LABELS: tuple[str, ...] = (
-    "GK",
-    "CB (left)",
-    "CB (right)",
-    "LB",
-    "RB",
-    "CM (left)",
-    "CM (center)",
-    "CM (right)",
-    "LW",
-    "RW",
-    "ST",
-)
+# A '---'-fenced frontmatter splits a doc into ['', frontmatter, body].
+_FRONTMATTER_PARTS = 3
+
+# Role -> expected band, for the heuristic fallback.
+_ZONE_BY_ROLE: dict[str, str] = {
+    "GK": ZONE_DEFENSIVE,
+    "CB": ZONE_DEFENSIVE,
+    "LB": ZONE_DEFENSIVE,
+    "RB": ZONE_DEFENSIVE,
+    "CM": ZONE_MIDFIELD,
+    "LW": ZONE_ATTACKING,
+    "RW": ZONE_ATTACKING,
+    "ST": ZONE_ATTACKING,
+}
 
 
-def _person(pid: int, name: str, expected_zone: str, traits: list[str], tendency: str) -> dict:
-    """Assemble one personality profile record (role is derived from ``pid``)."""
+def _player(player_id: str, role: str, team: str, player_index: int, agent_slug: str) -> dict:
+    """Build one roster entry; ``expected_zone`` is derived from ``role``."""
     return {
-        "id": pid,
-        "name": name,
-        "role": _ROLE_LABELS[pid],
-        "expected_zone": expected_zone,
-        "traits": traits,
-        "tendency": tendency,
+        "player_id": player_id,
+        "role": role,
+        "team": team,
+        "player_index": player_index,
+        "agent_file": f".claude/agents/{agent_slug}.md",
+        "expected_zone": _ZONE_BY_ROLE[role],
     }
 
 
-# Home squad: the named Liverpool-style XI from the task brief (Sterling at LW is
-# off-era but kept verbatim per the brief).
-_LIVERPOOL: dict[int, dict] = {
-    0: _person(0, "Alisson", ZONE_DEFENSIVE, ["calm", "commanding"],
-               "Sweeper-keeper; stays home but starts attacks with the ball at his feet."),
-    1: _person(1, "Van Dijk", ZONE_DEFENSIVE, ["composed", "dominant"],
-               "Anchors the back line; steps up to intercept but rarely strays from his half."),
-    2: _person(2, "Gomez", ZONE_DEFENSIVE, ["quick", "recovery pace"],
-               "Covers in behind; uses pace to recover rather than diving in."),
-    3: _person(3, "Robertson", ZONE_DEFENSIVE, ["relentless", "high-energy"],
-               "Overlaps hard down the left but must recover defensively when out of possession."),
-    4: _person(4, "Alexander-Arnold", ZONE_DEFENSIVE, ["creative", "ambitious"],
-               "Whips in early crosses; prone to being caught upfield after attacks break down."),
-    5: _person(5, "Fabinho", ZONE_MIDFIELD, ["disciplined", "screening"],
-               "Defensive anchor; shields the back four and seldom ventures forward."),
-    6: _person(6, "Henderson", ZONE_MIDFIELD, ["box-to-box", "vocal"],
-               "Drives between boxes; organizes the press."),
-    7: _person(7, "Wijnaldum", ZONE_MIDFIELD, ["press-resistant", "progressive"],
-               "Carries through pressure and links midfield to attack."),
-    8: _person(8, "Sterling", ZONE_ATTACKING, ["direct", "fast"],
-               "Runs in behind on the left; should stay high and wide to stretch the defense."),
-    9: _person(9, "Salah", ZONE_ATTACKING, ["clinical", "incisive"],
-               "Hugs the right touchline then cuts inside to shoot; lives in the final third."),
-    10: _person(10, "Firmino", ZONE_ATTACKING, ["selfless", "link-up"],
-                "False-nine who drops to link play, but leads the line in the attacking third."),
-}
+# Home XI — mirrors .claude/agents/coach-home.md and the player-*.md files.
+_HOME: list[dict] = [
+    _player("alisson_gk", "GK", "home", 0, "player-alisson"),
+    _player("gomez_cb", "CB", "home", 1, "player-gomez"),
+    _player("matip_cb", "CB", "home", 2, "player-matip"),
+    _player("robertson_lb", "LB", "home", 3, "player-robertson"),
+    _player("alexander-arnold_rb", "RB", "home", 4, "player-alexander-arnold"),
+    _player("fabinho_cm", "CM", "home", 5, "player-fabinho"),
+    _player("henderson_cm", "CM", "home", 6, "player-henderson"),
+    _player("wijnaldum_cm", "CM", "home", 7, "player-wijnaldum"),
+    _player("sterling_lw", "LW", "home", 8, "player-sterling"),
+    _player("salah_rw", "RW", "home", 9, "player-salah"),
+    _player("firmino_st", "ST", "home", 10, "player-firmino"),
+]
 
-# Away squad: a distinct generic opposition XI so the two coaches manage
-# different personalities.
-_RIVALS: dict[int, dict] = {
-    0: _person(0, "Keita-Keeper", ZONE_DEFENSIVE, ["shot-stopper", "vocal"],
-               "Line-keeper; stays on his line and commands the box."),
-    1: _person(1, "Stone", ZONE_DEFENSIVE, ["aggressive", "physical"],
-               "Front-foot defender; steps out to win the ball early."),
-    2: _person(2, "Walls", ZONE_DEFENSIVE, ["positional", "reads play"],
-               "Holds the line and sweeps space behind."),
-    3: _person(3, "Dash", ZONE_DEFENSIVE, ["pacey", "raiding"],
-               "Bombs forward on the left; must track back when possession is lost."),
-    4: _person(4, "Croft", ZONE_DEFENSIVE, ["steady", "tucks in"],
-               "Conservative full-back; rarely overlaps."),
-    5: _person(5, "Pivot", ZONE_MIDFIELD, ["holding", "metronome"],
-               "Deep-lying playmaker who dictates tempo from the base."),
-    6: _person(6, "Engine", ZONE_MIDFIELD, ["tireless", "two-way"],
-               "Covers ground box-to-box."),
-    7: _person(7, "Spark", ZONE_MIDFIELD, ["creative", "ball-progressing"],
-               "Threads passes and drives into the half-space."),
-    8: _person(8, "Flash", ZONE_ATTACKING, ["tricky", "1v1"],
-               "Beats his man on the left and stays high."),
-    9: _person(9, "Bolt", ZONE_ATTACKING, ["rapid", "in-behind"],
-               "Stretches the line with runs behind the full-back."),
-    10: _person(10, "Striker", ZONE_ATTACKING, ["poacher", "clinical"],
-                "Plays on the shoulder; stays central in the box."),
-}
+# Away XI — generic opposition; mirrors coach-away.md's role layout.
+_AWAY: list[dict] = [
+    _player("away_gk", "GK", "away", 0, "away-gk"),
+    _player("away_cb_left", "CB", "away", 1, "away-cb-left"),
+    _player("away_cb_right", "CB", "away", 2, "away-cb-right"),
+    _player("away_lb", "LB", "away", 3, "away-lb"),
+    _player("away_rb", "RB", "away", 4, "away-rb"),
+    _player("away_cm_def", "CM", "away", 5, "away-cm-defensive"),
+    _player("away_cm_b2b", "CM", "away", 6, "away-cm-box-to-box"),
+    _player("away_cm_att", "CM", "away", 7, "away-cm-attacking"),
+    _player("away_lw", "LW", "away", 8, "away-lw"),
+    _player("away_rw", "RW", "away", 9, "away-rw"),
+    _player("away_st", "ST", "away", 10, "away-st"),
+]
 
-# Public mapping: team -> squad index -> profile.
-PERSONALITIES: dict[str, dict[int, dict]] = {
-    "home": _LIVERPOOL,
-    "away": _RIVALS,
+# Flat, name-keyed roster across both teams. Each entry carries its ``team``.
+PLAYER_PERSONALITIES: dict[str, dict] = {p["player_id"]: p for p in (*_HOME, *_AWAY)}
+
+# Coach configuration: system-prompt source and the team token used to
+# authenticate MCP writes. Tokens match mcp_server.server.TOKENS.
+COACH_PERSONALITIES: dict[str, dict] = {
+    "home": {"agent_file": ".claude/agents/coach-home.md", "token": "home-secret-abc"},
+    "away": {"agent_file": ".claude/agents/coach-away.md", "token": "away-secret-xyz"},
 }
 
 
-def squad_for(team: str) -> dict[int, dict]:
-    """Return the personality profiles for ``team`` ("home" or "away")."""
-    try:
-        return PERSONALITIES[team]
-    except KeyError as err:
-        msg = f"unknown team {team!r}; expected one of {tuple(PERSONALITIES)}"
-        raise ValueError(msg) from err
+def players_for_team(team: str) -> dict[str, dict]:
+    """Return the ``player_id -> profile`` mapping for one team."""
+    return {pid: p for pid, p in PLAYER_PERSONALITIES.items() if p["team"] == team}
+
+
+def player_by_index(team: str, player_index: int) -> dict | None:
+    """Return the roster entry for a squad index on ``team`` (or None)."""
+    for profile in PLAYER_PERSONALITIES.values():
+        if profile["team"] == team and profile["player_index"] == player_index:
+            return profile
+    return None
+
+
+def load_system_prompt(agent_file: str) -> str | None:
+    """Return the body of an agent ``.md`` file (YAML frontmatter stripped).
+
+    Returns None if the file does not exist, so callers can fall back to a
+    built-in default prompt.
+    """
+    path = Path(agent_file)
+    if not path.is_file():
+        return None
+    text = path.read_text(encoding="utf-8")
+    if text.startswith("---"):
+        # Frontmatter is the first '---' fenced block: split into
+        # ['', frontmatter, body]; the prompt is the body.
+        parts = text.split("---", 2)
+        if len(parts) == _FRONTMATTER_PARTS:
+            return parts[2].strip()
+    return text.strip()
