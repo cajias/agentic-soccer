@@ -1,14 +1,16 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
 .worktrees/
 match/*.jsonl
 __pycache__/
 *.pyc
+
+# Scratch build/verify logs from the gfootball Docker bring-up
+build_*.txt
+verify_*.txt
+runcheck.txt
+six_gym_check.txt
+*_out.txt
+.agents/
+uv-*.lock
+
+# Claude hook logs
+.claude/hooks/.logs/
