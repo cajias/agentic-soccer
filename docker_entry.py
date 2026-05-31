@@ -30,7 +30,9 @@ def _start_mcp_server() -> None:
     """
     from mcp_server.server import PORT, mcp  # noqa: PLC0415
 
-    mcp.run(transport="http", host="0.0.0.0", port=PORT)  # noqa: S104 - container needs external bind
+    mcp.run(
+        transport="http", host="0.0.0.0", port=PORT
+    )  # noqa: S104 - container needs external bind
 
 
 def _run_match() -> int:
@@ -49,6 +51,13 @@ def _run_match() -> int:
     soccer_engine = getattr(engine, "SoccerEngine", None)
     if soccer_engine is not None:
         instance = soccer_engine()
+        # Share the engine's replay logger with the MCP server so every override
+        # write records a coach_cycle into the same replay.jsonl.
+        logger = getattr(instance, "logger", None)
+        if logger is not None:
+            from mcp_server.server import set_replay_logger  # noqa: PLC0415
+
+            set_replay_logger(logger)
         for run_name in ("run", "run_match", "play", "main"):
             run = getattr(instance, run_name, None)
             if callable(run):
@@ -79,7 +88,9 @@ def main() -> int:
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
     server_thread = threading.Thread(
-        target=_start_mcp_server, name="mcp-server", daemon=True,
+        target=_start_mcp_server,
+        name="mcp-server",
+        daemon=True,
     )
     server_thread.start()
     time.sleep(2)  # let the server bind :8765 before the match starts

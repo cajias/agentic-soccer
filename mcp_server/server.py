@@ -29,7 +29,6 @@ from starlette.responses import JSONResponse, Response
 
 from mcp_server.game_state import GameState
 
-
 if TYPE_CHECKING:
     from starlette.requests import Request
 
@@ -46,6 +45,42 @@ PORT = 8765
 GAME_STATE = GameState()
 
 mcp: FastMCP = FastMCP("agentic-soccer")
+
+# Optional replay logger shared with the in-process engine. When the launcher
+# (e.g. docker_entry) calls set_replay_logger, every override write also records
+# a coach_cycle block into the replay — this is how a coach (a Claude CLI
+# session, or a scripted call) satisfies the "coach_cycle in replay" milestone
+# with no LLM/SDK involved.
+_REPLAY_LOGGER: object | None = None
+
+
+def set_replay_logger(logger: object) -> None:
+    """Share the engine's ReplayLogger so override writes log coach cycles."""
+    global _REPLAY_LOGGER  # noqa: PLW0603 - module-level singleton wiring
+    _REPLAY_LOGGER = logger
+
+
+def _record_coach_cycle(team: str, player_id: str, override: dict) -> None:
+    """Record a coach_cycle block in the replay for an override write.
+
+    Best-effort: a logging failure (or no logger wired) must never break the
+    override itself.
+    """
+    if _REPLAY_LOGGER is None:
+        return
+    alert = {
+        "player_id": player_id,
+        "coach_reasoning": override.get("reasoning", ""),
+        "player_decision": "override",
+        "override_written": True,
+        "target_position": override.get("target_position"),
+        "duration_ticks": override.get("duration_ticks", 0),
+        "response_time_s": 0.0,
+    }
+    try:
+        _REPLAY_LOGGER.log_coach_cycle(GAME_STATE.tick, team, [alert])  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 - logging must never break an override write
+        return
 
 
 class AuthError(PermissionError):
@@ -132,7 +167,10 @@ def get_match_status(team: str, token: str | None = None) -> str:
 
 
 def update_player_override(
-    team: str, player_id: str, override: dict, token: str | None = None,
+    team: str,
+    player_id: str,
+    override: dict,
+    token: str | None = None,
 ) -> dict:
     """Store a behavior override for one player on ``team``.
 
@@ -145,6 +183,7 @@ def update_player_override(
     """
     _require_team(team, token)
     record = GAME_STATE.set_override(team, player_id, override)
+    _record_coach_cycle(team, player_id, override)
     return {"status": "ok", "team": team, "player_id": player_id, "record": record}
 
 
@@ -258,6 +297,7 @@ async def _route_update_override(request: Request) -> Response:
     except (AuthError, ValueError) as exc:
         return _error_response(exc)
     record = GAME_STATE.set_override(team, player_id, override)
+    _record_coach_cycle(team, player_id, override)
     return JSONResponse(
         {"status": "ok", "team": team, "player_id": player_id, "record": record},
     )
