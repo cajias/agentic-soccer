@@ -42,14 +42,23 @@ packages = ["simulator", "mcp_server", "agents", "replay"]
 #      automatically under /opt/homebrew on Apple Silicon, so no extra flags
 #      are required as long as the brew packages are installed (see README).
 #
-# `extra-build-dependencies` is a uv preview feature; enabling it here keeps
-# `uv sync` working without the --preview-features flag or a warning.
+# `extra-build-dependencies` / `extra-build-variables` are uv preview features.
+# They are NOT valid `[tool.uv]` table keys (uv rejects `preview-features`
+# there) — enable them on the CLI when syncing:
+#   uv sync --extra dev \
+#       --preview-features extra-build-dependencies,extra-build-variables
+#
+# extra-build-variables injects env vars into gfootball's isolated build:
+#   * CMAKE_PREFIX_PATH/CPATH/LIBRARY_PATH point CMake at Homebrew SDL2/boost/glew.
+#   * CMAKE_POLICY_VERSION_MINIMUM=3.5 — gfootball's CMakeLists declares
+#     `cmake_minimum_required` < 3.5, which CMake 4.x removed; this demotes the
+#     hard error back to a deprecation warning.
 # ---------------------------------------------------------------------------
-[tool.uv]
-preview-features = ["extra-build-dependencies"]
-
 [tool.uv.extra-build-dependencies]
 gfootball = ["psutil", "numpy", "setuptools", "wheel"]
+
+[tool.uv.extra-build-variables]
+gfootball = { CMAKE_PREFIX_PATH = "/opt/homebrew", CPATH = "/opt/homebrew/include", LIBRARY_PATH = "/opt/homebrew/lib", CMAKE_POLICY_VERSION_MINIMUM = "3.5" }
 
 # ---------------------------------------------------------------------------
 # Lint configuration copied from github.com/cajias/lint-configs (python/),

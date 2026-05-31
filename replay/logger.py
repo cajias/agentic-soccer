@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-
+import threading
 
 # Player roles by index within a team (gfootball 11v11 layout).
 ROLES = ["GK", "CB", "CB", "LB", "RB", "CM", "CM", "CM", "LW", "RW", "ST"]
@@ -45,6 +45,9 @@ class ReplayLogger:
             os.makedirs(parent, exist_ok=True)
         # Open in append mode so reopening an existing replay continues it.
         self._fh = open(path, "a", encoding="utf-8")
+        # Guards every write: in the single-process launch the simulator thread
+        # appends ticks while the two coach threads annotate the last line.
+        self._lock = threading.Lock()
 
     def log_tick(self, tick: int, t: float, obs: dict, score: list[int]) -> None:
         """Append one tick to the replay log.
@@ -63,8 +66,9 @@ class ReplayLogger:
             "ball": {"x": float(ball[0]), "y": float(ball[1])},
             "score": list(score),
         }
-        self._fh.write(json.dumps(record) + "\n")
-        self._fh.flush()
+        with self._lock:
+            self._fh.write(json.dumps(record) + "\n")
+            self._fh.flush()
 
     def log_coach_cycle(self, tick: int, team: str, alerts: list[dict]) -> None:
         """Embed a ``coach_cycle`` block into the current tick's line.
@@ -75,31 +79,33 @@ class ReplayLogger:
             {player_id, coach_reasoning, player_decision, override_written,
              target_position, duration_ticks, response_time_s}
         """
-        # Ensure buffered writes are on disk before we read the file back.
-        self._fh.flush()
-        with open(self.path, encoding="utf-8") as fh:
-            lines = fh.readlines()
-        if not lines:
-            return
+        with self._lock:
+            # Ensure buffered writes are on disk before we read the file back.
+            self._fh.flush()
+            with open(self.path, encoding="utf-8") as fh:
+                lines = fh.readlines()
+            if not lines:
+                return
 
-        last = json.loads(lines[-1])
-        block = {"tick": tick, "team": team, "alerts": alerts}
-        last.setdefault("coach_cycle", []).append(block)
-        lines[-1] = json.dumps(last) + "\n"
+            last = json.loads(lines[-1])
+            block = {"tick": tick, "team": team, "alerts": alerts}
+            last.setdefault("coach_cycle", []).append(block)
+            lines[-1] = json.dumps(last) + "\n"
 
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            fh.writelines(lines)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, self.path)
+            tmp = self.path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.writelines(lines)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, self.path)
 
-        # The appended fd now points at the replaced inode; reopen for appends.
-        self._fh.close()
-        self._fh = open(self.path, "a", encoding="utf-8")
+            # The appended fd now points at the replaced inode; reopen for appends.
+            self._fh.close()
+            self._fh = open(self.path, "a", encoding="utf-8")
 
     def close(self) -> None:
         """Flush and close the underlying file handle."""
-        if not self._fh.closed:
-            self._fh.flush()
-            self._fh.close()
+        with self._lock:
+            if not self._fh.closed:
+                self._fh.flush()
+                self._fh.close()
