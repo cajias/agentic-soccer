@@ -4,7 +4,9 @@ from __future__ import annotations
 
 
 def main() -> None:
-    raise NotImplementedError("team_loop stub")
+    """Orchestrate coach + player agents for a team (stub: not yet implemented)."""
+    msg = "team_loop stub"
+    raise NotImplementedError(msg)
 
 
 if __name__ == "__main__":

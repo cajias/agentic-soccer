@@ -4,7 +4,9 @@ from __future__ import annotations
 
 
 def main() -> None:
-    raise NotImplementedError("simulator_main stub")
+    """Run a single match simulation (stub: not yet implemented)."""
+    msg = "simulator_main stub"
+    raise NotImplementedError(msg)
 
 
 if __name__ == "__main__":

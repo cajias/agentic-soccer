@@ -33,147 +33,37 @@ packages = ["simulator", "mcp_server", "agents", "replay"]
 # gfootball (Google Research Football) build configuration.
 #
 # gfootball 2.10.2 ships only an sdist and compiles a C++ engine at install
-# time. Two things break a plain `uv sync` on macOS arm64 / Python 3.12:
+# time. Three things break a plain `uv sync` on macOS arm64 / Python 3.12:
 #
-#   1. setup.py imports `psutil`/`numpy` to drive the build, but uv's default
-#      build isolation hides them -> "ModuleNotFoundError: No module named
-#      'psutil'". We inject them into the isolated build env below.
-#   2. The C++ engine links against Homebrew SDL2/boost/glew. CMake finds them
-#      automatically under /opt/homebrew on Apple Silicon, so no extra flags
-#      are required as long as the brew packages are installed (see README).
-#
-# `extra-build-dependencies` is a uv preview feature; enabling it here keeps
-# `uv sync` working without the --preview-features flag or a warning.
+#   1. setup.py imports `psutil` / `numpy` / `cmake` (the PyPI cmake wheel)
+#      to drive the build, but uv's default build isolation hides them ->
+#      "ModuleNotFoundError: No module named 'psutil'" (then 'cmake'). We
+#      inject them into the isolated build env via extra-build-dependencies.
+#   2. The C++ engine links against Homebrew SDL2 / boost / glew. We point
+#      the compiler/linker at the Homebrew prefix via extra-build-variables
+#      so the build does not depend on the caller's shell environment.
+#      (Apple Silicon brew prefix = /opt/homebrew; see README for prereqs:
+#       brew install cmake sdl2 sdl2_image sdl2_ttf sdl2_gfx boost glew.)
+#   3. Both uv options are preview features. uv prints a cosmetic
+#      "experimental" warning for them; pass
+#      `--preview-features extra-build-dependencies,extra-build-variables`
+#      to silence it. The options are applied regardless of the warning.
 # ---------------------------------------------------------------------------
-[tool.uv]
-preview-features = ["extra-build-dependencies"]
-
 [tool.uv.extra-build-dependencies]
-gfootball = ["psutil", "numpy", "setuptools", "wheel"]
+gfootball = ["psutil", "numpy", "setuptools", "wheel", "cmake"]
 
-# ---------------------------------------------------------------------------
-# Lint configuration copied from github.com/cajias/lint-configs (python/),
-# adapted: target-version py312, known-first-party + coverage source set to
-# this project's packages, and pygame/gfootball added to mypy import overrides.
-# ---------------------------------------------------------------------------
+[tool.uv.extra-build-variables]
+# CMAKE_POLICY_VERSION_MINIMUM=3.5: gfootball's engine CMakeLists.txt declares
+# cmake_minimum_required(VERSION 3.4); CMake 4.x removed compat below 3.5 and
+# hard-errors without this. The C++ engine also REQUIRES the SDL2 satellite
+# libs (sdl2_image, sdl2_ttf, sdl2_gfx) in addition to base sdl2 — install all:
+#   brew install cmake sdl2 sdl2_image sdl2_ttf sdl2_gfx boost glew
+gfootball = { CMAKE_PREFIX_PATH = "/opt/homebrew", CPATH = "/opt/homebrew/include", LIBRARY_PATH = "/opt/homebrew/lib", CMAKE_POLICY_VERSION_MINIMUM = "3.5" }
 
-[tool.ruff]
-line-length = 120
-target-version = "py312"
-
-[tool.ruff.lint]
-select = [
-    "E",     # pycodestyle errors
-    "F",     # Pyflakes (includes unused imports F401, unused variables F841)
-    "I",     # isort (import sorting)
-    "B",     # flake8-bugbear (common bugs)
-    "W",     # pycodestyle warnings
-    "C90",   # McCabe complexity
-    "SIM",   # flake8-simplify (detect overly complex code)
-    "PIE",   # flake8-pie
-    "PLR",   # Pylint refactoring
-    "RET",   # flake8-return
-    "ANN",   # flake8-annotations (require type hints)
-    "UP",    # pyupgrade
-    "D",     # pydocstyle (docstring conventions)
-    "N",     # pep8-naming
-    "S",     # flake8-bandit (security issues)
-    "BLE",   # flake8-blind-except
-    "A",     # flake8-builtins
-    "COM",   # flake8-commas
-    "C4",    # flake8-comprehensions
-    "DTZ",   # flake8-datetimez
-    "T10",   # flake8-debugger
-    "EM",    # flake8-errmsg
-    "ISC",   # flake8-implicit-str-concat
-    "ICN",   # flake8-import-conventions
-    "G",     # flake8-logging-format
-    "INP",   # flake8-no-pep420
-    "PT",    # flake8-pytest-style
-    "Q",     # flake8-quotes
-    "RSE",   # flake8-raise
-    "SLOT",  # flake8-slots
-    "TID",   # flake8-tidy-imports
-    "TCH",   # flake8-type-checking
-    "ARG",   # flake8-unused-arguments
-    "PTH",   # flake8-use-pathlib
-    "ERA",   # eradicate (dead code detection)
-    "PGH",   # pygrep-hooks
-    "PL",    # Pylint
-    "TRY",   # tryceratops
-    "FLY",   # flynt
-    "PERF",  # Perflint
-    "RUF",   # Ruff-specific rules
-]
-ignore = [
-    "E203",  # Whitespace before ':' (conflicts with Black)
-    "E501",  # Line too long (handled by Black)
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "ANN001", "ANN201", "PLR2004", "PLR0913"]
-"**/test_*.py" = ["S101", "ANN001", "ANN201", "PLR2004", "PLR0913"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 10
-
-[tool.ruff.lint.pylint]
-max-args = 5
-max-branches = 12
-max-returns = 6
-max-statements = 50
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.ruff.lint.isort]
-known-first-party = ["simulator", "mcp_server", "agents", "replay"]
-force-single-line = false
-lines-after-imports = 2
-
-[tool.black]
-line-length = 120
-target-version = ["py312"]
-
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-strict_equality = true
-strict = true
-show_error_codes = true
-show_column_numbers = true
-pretty = true
-
-[[tool.mypy.overrides]]
-module = ["mcp.*", "fastmcp.*", "pydantic.*", "pygame.*", "gfootball.*", "numpy.*"]
-ignore_missing_imports = true
+# Lint/type config lives in standalone ruff.toml and mypy.ini (the single
+# source of truth). Test config stays here so pytest picks it up automatically.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
 asyncio_mode = "auto"
-
-[tool.coverage.run]
-branch = true
-source = ["simulator", "mcp_server", "agents", "replay"]
-omit = ["*/tests/*", "*/test_*.py", "*/__pycache__/*", "*/.venv/*"]
-
-[tool.coverage.report]
-precision = 2
-show_missing = true
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-    "@abstractmethod",
-]

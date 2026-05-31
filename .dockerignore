@@ -1,0 +1,24 @@
+# Keep the build context small and reproducible.
+.git
+.gitignore
+.venv
+.worktrees
+.agents
+.remember
+.claude
+.mypy_cache
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/*.pyc
+*.lock
+uv.lock
+build_*.txt
+scripts/build_gfootball.sh
+# match/ is provided as a runtime volume, not baked into the image.
+match/*.jsonl
+match/test_*.jsonl
+Dockerfile
+docker-compose.yml
+run_docker.sh
+README.md

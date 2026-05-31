@@ -7,7 +7,7 @@ import json
 from replay.logger import ReplayLogger
 
 
-def _obs():
+def _obs() -> dict:
     """Minimal observation: 11 home + 11 away positions and a ball."""
     left = [[i * 0.01, i * 0.02] for i in range(11)]
     right = [[-i * 0.01, -i * 0.02] for i in range(11)]
@@ -15,6 +15,7 @@ def _obs():
 
 
 def test_log_tick_writes_valid_json_line(tmp_path):
+    """log_tick writes one valid JSON line with 22 players, ball, and score."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
     logger.log_tick(0, 0.0, _obs(), [0, 0])
@@ -36,6 +37,7 @@ def test_log_tick_writes_valid_json_line(tmp_path):
 
 
 def test_file_and_dir_created_if_missing(tmp_path):
+    """The log file and any missing parent directories are created on init."""
     path = tmp_path / "match" / "nested" / "replay.jsonl"
     assert not path.parent.exists()
     logger = ReplayLogger(str(path))
@@ -45,6 +47,7 @@ def test_file_and_dir_created_if_missing(tmp_path):
 
 
 def test_multiple_ticks_accumulate(tmp_path):
+    """Successive log_tick calls accumulate as ordered JSONL lines."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
     for tick in range(5):
@@ -60,6 +63,7 @@ def test_multiple_ticks_accumulate(tmp_path):
 
 
 def test_log_coach_cycle_embeds_into_last_tick(tmp_path):
+    """log_coach_cycle embeds a coach_cycle block into the most recent tick."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
     logger.log_tick(0, 0.0, _obs(), [0, 0])
@@ -102,3 +106,25 @@ def test_log_tick_after_coach_cycle_appends_correctly(tmp_path):
     assert len(lines) == 2
     assert json.loads(lines[0])["coach_cycle"][0]["team"] == "away"
     assert json.loads(lines[1])["tick"] == 1
+
+
+def test_log_coach_cycle_targets_matching_tick_not_last_line(tmp_path):
+    """A late cycle for an older tick lands on that tick's line, not the newest.
+
+    Mirrors the real race: the simulator writes newer ticks while the coach is
+    mid-decision, so the cycle must attach to its own ``tick``.
+    """
+    path = tmp_path / "match" / "replay.jsonl"
+    logger = ReplayLogger(str(path))
+    logger.log_tick(0, 0.0, _obs(), [0, 0])
+    logger.log_tick(1, 0.1, _obs(), [0, 0])
+    logger.log_tick(2, 0.2, _obs(), [0, 0])
+    # Coach started at tick 0 but only finished after ticks 1 and 2 were written.
+    logger.log_coach_cycle(0, "home", [{"player_id": 9}])
+    logger.close()
+
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    assert "coach_cycle" in records[0]
+    assert records[0]["coach_cycle"][0]["tick"] == 0
+    assert "coach_cycle" not in records[1]
+    assert "coach_cycle" not in records[2]

@@ -11,6 +11,7 @@ class Engine:
     """Stub match engine. Replace with the real simulation integration."""
 
     def __init__(self) -> None:
+        """Initialize the engine at tick zero."""
         self.tick = 0
 
     def step(self) -> None:
@@ -19,7 +20,9 @@ class Engine:
 
 
 def main() -> None:
-    raise NotImplementedError("engine stub")
+    """Run the engine directly (stub: not yet implemented)."""
+    msg = "engine stub"
+    raise NotImplementedError(msg)
 
 
 if __name__ == "__main__":

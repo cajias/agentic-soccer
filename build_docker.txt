@@ -1,0 +1,89 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 3.46kB done
+#1 DONE 0.0s
+
+#2 resolve image config for docker-image://docker.io/docker/dockerfile:1
+#2 ...
+
+#3 [auth] docker/dockerfile:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#2 resolve image config for docker-image://docker.io/docker/dockerfile:1
+#2 DONE 0.9s
+
+#4 docker-image://docker.io/docker/dockerfile:1@sha256:87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89
+#4 DONE 0.0s
+
+#4 docker-image://docker.io/docker/dockerfile:1@sha256:87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89
+#4 CACHED
+
+#5 [internal] load metadata for docker.io/library/ubuntu:24.04
+#5 ...
+
+#6 [auth] library/ubuntu:pull token for registry-1.docker.io
+#6 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/ubuntu:24.04
+#5 DONE 0.5s
+
+#7 [internal] load .dockerignore
+#7 transferring context: 421B done
+#7 DONE 0.0s
+
+#8 [ 1/13] FROM docker.io/library/ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b
+#8 DONE 0.0s
+
+#9 [ 2/13] RUN apt-get update && apt-get install -y --no-install-recommends         git         cmake         build-essential         python3         python3-dev         python3-venv         python3-pip         libgl1-mesa-dev         libsdl2-dev         libsdl2-image-dev         libsdl2-ttf-dev         libsdl2-gfx-dev         libboost-all-dev         libdirectfb-dev         libst-dev         mesa-utils     && rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [ 3/13] RUN python3 -m venv /opt/venv
+#10 CACHED
+
+#11 [ 4/13] WORKDIR /app
+#11 CACHED
+
+#12 [internal] load build context
+#12 transferring context: 34.45kB 0.0s done
+#12 DONE 0.0s
+
+#13 [ 5/13] RUN pip install --upgrade pip setuptools wheel     && pip install psutil "numpy>=1.26"     && pip install --no-build-isolation gfootball==2.10.2
+#13 0.741 Requirement already satisfied: pip in /opt/venv/lib/python3.12/site-packages (24.0)
+#13 0.912 Collecting pip
+#13 1.057   Downloading pip-26.1.1-py3-none-any.whl.metadata (4.6 kB)
+#13 1.232 Collecting setuptools
+#13 1.257   Downloading setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)
+#13 1.331 Collecting wheel
+#13 1.352   Downloading wheel-0.47.0-py3-none-any.whl.metadata (2.3 kB)
+#13 1.420 Collecting packaging>=24.0 (from wheel)
+#13 1.443   Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)
+#13 1.471 Downloading pip-26.1.1-py3-none-any.whl (1.8 MB)
+#13 12.78    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 160.1 kB/s eta 0:00:00
+#13 12.81 Downloading setuptools-82.0.1-py3-none-any.whl (1.0 MB)
+#13 19.59    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 149.2 kB/s eta 0:00:00
+#13 19.62 Downloading wheel-0.47.0-py3-none-any.whl (32 kB)
+#13 19.81 Downloading packaging-26.2-py3-none-any.whl (100 kB)
+#13 20.19    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 297.4 kB/s eta 0:00:00
+#13 20.24 Installing collected packages: setuptools, pip, packaging, wheel
+#13 20.74   Attempting uninstall: pip
+#13 20.74     Found existing installation: pip 24.0
+#13 20.78     Uninstalling pip-24.0:
+#13 21.14       Successfully uninstalled pip-24.0
+#13 21.96 Successfully installed packaging-26.2 pip-26.1.1 setuptools-82.0.1 wheel-0.47.0
+#13 22.66 Collecting psutil
+#13 22.78   Downloading psutil-7.2.2-cp36-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (22 kB)
+#13 22.97 Collecting numpy>=1.26
+#13 23.00   Downloading numpy-2.4.6-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (6.6 kB)
+#13 23.02 Downloading psutil-7.2.2-cp36-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (156 kB)
+#13 23.12 Downloading numpy-2.4.6-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (15.7 MB)
+#13 109.2    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.7/15.7 MB 202.1 kB/s  0:01:25
+#13 109.3 Installing collected packages: psutil, numpy
+#13 111.9 
+#13 111.9 Successfully installed numpy-2.4.6 psutil-7.2.2
+#13 113.1 Collecting gfootball==2.10.2
+#13 113.3   Downloading gfootball-2.10.2.tar.gz (8.7 MB)
+#13 252.2      ━━━━━━━━━━━━━━━━━━                       3.9/8.7 MB 140.8 kB/s eta 0:00:35
+#13 252.2   WARNING: Connection timed out while downloading.
+#13 252.2   WARNING: Attempting to resume incomplete download (3.9 MB/8.7 MB, attempt 1)
+#13 254.1   Resuming download gfootball-2.10.2.tar.gz (3.9 MB/8.7 MB)

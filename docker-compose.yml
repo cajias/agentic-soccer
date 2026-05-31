@@ -1,0 +1,24 @@
+# Runs the agentic-soccer container: gfootball engine + MCP server in one
+# process (shared in-process GAME_STATE), with match/ mounted so replay.jsonl
+# is readable on the host.
+services:
+  soccer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentic-soccer:latest
+    container_name: agentic-soccer
+    ports:
+      - "8765:8765"          # MCP server (Streamable HTTP)
+    volumes:
+      - ./match:/app/match   # replay.jsonl written here, readable on host
+    environment:
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+      MCP_HOST: "0.0.0.0"    # container must bind externally; server defaults to 127.0.0.1
+      # Pass your key through to enable the coach/player LLM agents.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    # Default service command runs the full match + server. Override on the
+    # CLI for one-off checks, e.g.:
+    #   docker compose run --rm soccer python tests/verify_gfootball.py
+    command: ["python", "docker_entry.py"]

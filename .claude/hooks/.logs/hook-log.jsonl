@@ -13,3 +13,19 @@
 {"ts":"2026-05-30T21:36:39.778Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/lib/python3.12/site-packages/","matched":".venv/lib/python3.12/site-packages"}
 {"ts":"2026-05-30T21:36:49.529Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/bin/python","matched":".venv/bin/python"}
 {"ts":"2026-05-30T21:39:41.011Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/.lock","matched":".venv/.lock"}
+{"ts":"2026-05-30T21:40:06.643Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/bin/pytest","matched":".venv/bin/pytest"}
+{"ts":"2026-05-30T21:41:35.283Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":"main"}
+{"ts":"2026-05-30T21:44:24.979Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":"secret"}
+{"ts":"2026-05-30T21:47:12.518Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":"main"}
+{"ts":"2026-05-30T21:48:06.002Z","hook":"stop-notify","projectName":"agentic-soccer","duration":"6m 30s","iterations":0}
+{"ts":"2026-05-30T21:53:55.185Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/bin/python","matched":".venv/bin/python"}
+{"ts":"2026-05-30T22:04:02.577Z","hook":"iteration-context","action":"skip","iterationCount":2}
+{"ts":"2026-05-30T22:06:18.215Z","hook":"scout-block","action":"block","tool":"Bash","path":".venv/bin/python","matched":".venv/bin/python"}
+{"ts":"2026-05-30T22:06:18.269Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":".env"}
+{"ts":"2026-05-30T22:16:47.482Z","hook":"iteration-context","action":"skip","iterationCount":1}
+{"ts":"2026-05-30T22:16:47.481Z","hook":"dev-rules-reminder","action":"inject","iterationCount":0}
+{"ts":"2026-05-30T22:24:00.712Z","hook":"iteration-context","action":"skip","iterationCount":2}
+{"ts":"2026-05-30T22:38:11.336Z","hook":"subagent-context","action":"skip","reason":"no-active-tsv"}
+{"ts":"2026-05-30T22:50:55.517Z","hook":"subagent-context","action":"skip","reason":"no-active-tsv"}
+{"ts":"2026-05-31T12:46:00.958Z","hook":"iteration-context","action":"skip","iterationCount":3}
+{"ts":"2026-05-31T12:50:22.537Z","hook":"iteration-context","action":"skip","iterationCount":4}

@@ -1,13 +1,18 @@
 """Replay logger: records match ticks to a JSONL file for later replay.
 
 Each tick is one JSON line. Coach-cycle annotations are embedded back into the
-most recent tick's line via an atomic rewrite (write `.tmp` then ``os.replace``).
+most recent tick's line via an atomic rewrite (write `.tmp` then ``Path.replace``).
 """
 
 from __future__ import annotations
 
 import json
-import os
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 # Player roles by index within a team (gfootball 11v11 layout).
@@ -19,7 +24,7 @@ def _role(index: int) -> str:
     return ROLES[index] if 0 <= index < len(ROLES) else "SUB"
 
 
-def _players(team: str, positions) -> list[dict]:
+def _players(team: str, positions: Sequence[Sequence[float]]) -> list[dict]:
     """Build player records for one team from an array of (x, y) positions."""
     players = []
     for i, pos in enumerate(positions):
@@ -39,12 +44,12 @@ class ReplayLogger:
     """Append-only JSONL replay logger with atomic coach-cycle annotation."""
 
     def __init__(self, path: str = "match/replay.jsonl") -> None:
-        self.path = path
-        parent = os.path.dirname(path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
+        """Open ``path`` for appending, creating parent directories as needed."""
+        self.path = Path(path)
+        if self.path.parent != Path():
+            self.path.parent.mkdir(parents=True, exist_ok=True)
         # Open in append mode so reopening an existing replay continues it.
-        self._fh = open(path, "a", encoding="utf-8")
+        self._fh = self.path.open("a", encoding="utf-8")
 
     def log_tick(self, tick: int, t: float, obs: dict, score: list[int]) -> None:
         """Append one tick to the replay log.
@@ -67,36 +72,60 @@ class ReplayLogger:
         self._fh.flush()
 
     def log_coach_cycle(self, tick: int, team: str, alerts: list[dict]) -> None:
-        """Embed a ``coach_cycle`` block into the current tick's line.
+        """Embed a ``coach_cycle`` block into the line for ``tick``.
 
-        Reads the last line, adds the block, and rewrites the file atomically
-        (write to ``.tmp`` then ``os.replace``). ``alerts`` entries look like::
+        Targets the line whose ``tick`` matches the argument (the most recent
+        such line if several share it), falling back to the last line if no
+        match is found — this keeps the cycle attached to its own tick even when
+        the simulator has written newer ticks while the coach was deciding. The
+        file is rewritten atomically (``.tmp`` then ``Path.replace``). ``alerts``
+        entries look like::
 
             {player_id, coach_reasoning, player_decision, override_written,
              target_position, duration_ticks, response_time_s}
         """
         # Ensure buffered writes are on disk before we read the file back.
         self._fh.flush()
-        with open(self.path, encoding="utf-8") as fh:
+        with self.path.open(encoding="utf-8") as fh:
             lines = fh.readlines()
-        if not lines:
-            return
 
-        last = json.loads(lines[-1])
+        idx, record = self._locate_tick(lines, tick)
+        if idx is None:
+            return  # no tick lines written yet — nothing to annotate
+
         block = {"tick": tick, "team": team, "alerts": alerts}
-        last.setdefault("coach_cycle", []).append(block)
-        lines[-1] = json.dumps(last) + "\n"
+        record.setdefault("coach_cycle", []).append(block)
+        lines[idx] = json.dumps(record) + "\n"
 
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        with tmp.open("w", encoding="utf-8") as fh:
             fh.writelines(lines)
             fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, self.path)
+        tmp.replace(self.path)
 
         # The appended fd now points at the replaced inode; reopen for appends.
         self._fh.close()
-        self._fh = open(self.path, "a", encoding="utf-8")
+        self._fh = self.path.open("a", encoding="utf-8")
+
+    @staticmethod
+    def _locate_tick(lines: list[str], tick: int) -> tuple[int | None, dict]:
+        """Find the line to annotate for ``tick``.
+
+        Returns ``(index, parsed_record)`` for the most recent line whose
+        ``tick`` matches, else the last valid line, else ``(None, {})``.
+        """
+        last_idx: int | None = None
+        last_record: dict = {}
+        for i in range(len(lines) - 1, -1, -1):
+            try:
+                record = json.loads(lines[i])
+            except json.JSONDecodeError:
+                continue
+            if last_idx is None:
+                last_idx, last_record = i, record  # newest valid line (fallback)
+            if record.get("tick") == tick:
+                return i, record
+        return last_idx, last_record
 
     def close(self) -> None:
         """Flush and close the underlying file handle."""
