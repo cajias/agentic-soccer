@@ -48,8 +48,9 @@ class ReplayLogger:
     def __init__(self, path: str = "match/replay.jsonl") -> None:
         """Open ``path`` for appending, creating parent directories as needed."""
         self.path = Path(path)
-        if self.path.parent != Path():
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+        # Always ensure the parent dir exists before opening — the container's
+        # working dir does not guarantee match/ exists (mkdir of "." is a no-op).
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         # Open in append mode so reopening an existing replay continues it.
         self._fh = self.path.open("a", encoding="utf-8")
         # Guards every write: in the single-process launch the simulator thread
