@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 
+
 # Player roles by squad index (same layout for both teams).
 ROLE_LABELS: tuple[str, ...] = (
     "GK",
@@ -54,6 +55,13 @@ _PENALTY_Y = 0.27
 _CHANNEL_Y = 0.14  # |y| beyond this leaves the central corridor
 _MOVING_SPEED = 0.005  # per-step velocity magnitude above which a player is "moving"
 _NEAR_BALL = 0.06  # distance at which a player is engaging the ball
+_CHASE_RANGE = 0.3  # distance within which moving toward the ball reads as "closing"
+
+# Opponent counts inside our defensive third that define pressure bands.
+_HEAVY_PRESSURE = 4
+_MODERATE_PRESSURE = 2
+
+_VALID_TEAMS = ("home", "away")
 
 
 def _mirror(point: list[float] | tuple[float, ...]) -> tuple[float, float]:
@@ -126,7 +134,7 @@ def _player_action(
 
     # If they are moving generally toward the ball, say so instead.
     toward_ball = (ball[0] - pos[0]) * vel[0] + (ball[1] - pos[1]) * vel[1]
-    if toward_ball > 0 and dist_to_ball < 0.3:
+    if toward_ball > 0 and dist_to_ball < _CHASE_RANGE:
         return f"closing on the ball in {zone}"
 
     return f"{heading} in {zone}"
@@ -146,16 +154,11 @@ def _possession_line(
 
     side = "Home" if owned_team == 0 else "Away"
     player_idx = obs.get("ball_owned_player", -1)
-    if 0 <= player_idx < len(ROLE_LABELS):
-        role = ROLE_LABELS[player_idx]
-    else:
-        role = "a player"
+    role = ROLE_LABELS[player_idx] if 0 <= player_idx < len(ROLE_LABELS) else "a player"
 
     # Locate the carrier in our perspective frame for the zone phrase.
-    if 0 <= player_idx < len(owner_positions):
-        carrier_zone = _zone(*owner_positions[player_idx])
-    else:
-        carrier_zone = _zone(*ball)
+    carrier_in_frame = 0 <= player_idx < len(owner_positions)
+    carrier_zone = _zone(*owner_positions[player_idx]) if carrier_in_frame else _zone(*ball)
 
     return f"POSSESSION: {side} — {role} has the ball in {carrier_zone}"
 
@@ -197,15 +200,15 @@ def _game_situation(
 
     # Pressure: opponents inside our defensive third.
     opp_in_def_third = sum(1 for x, _ in opp_positions if x < -_THIRD)
-    if opp_in_def_third >= 4:
+    if opp_in_def_third >= _HEAVY_PRESSURE:
         sentences.append(
             f"Heavy pressure — {opp_in_def_third} opponents are camped in your "
-            "defensive third."
+            "defensive third.",
         )
-    elif opp_in_def_third >= 2:
+    elif opp_in_def_third >= _MODERATE_PRESSURE:
         sentences.append(
             f"Moderate pressure with {opp_in_def_third} opponents pressing into "
-            "your defensive third."
+            "your defensive third.",
         )
     else:
         sentences.append("Little defensive pressure right now; the back line is calm.")
@@ -226,7 +229,7 @@ def _game_situation(
     if owned_team == my_team:
         attackers_high = sum(1 for x, _ in my_positions if x > _THIRD)
         sentences.append(
-            f"You have {attackers_high} players advanced into the attacking third."
+            f"You have {attackers_high} players advanced into the attacking third.",
         )
 
     return " ".join(sentences)
@@ -243,8 +246,9 @@ def narrate(obs: dict, team: str = "home") -> str:
         A multi-line report string.
     """
     team = team.lower()
-    if team not in ("home", "away"):
-        raise ValueError(f"team must be 'home' or 'away', got {team!r}")
+    if team not in _VALID_TEAMS:
+        msg = f"team must be one of {_VALID_TEAMS}, got {team!r}"
+        raise ValueError(msg)
     my_team = 0 if team == "home" else 1
 
     score = obs.get("score", [0, 0])
@@ -269,7 +273,7 @@ def narrate(obs: dict, team: str = "home") -> str:
 
     lines: list[str] = []
     lines.append(
-        f"MATCH STATE ({clock}) | Score: Home {score[0]} – Away {score[1]}"
+        f"MATCH STATE ({clock}) | Score: Home {score[0]} – Away {score[1]}",  # noqa: RUF001 - en dash is intentional scoreline styling
     )
     lines.append("")
     lines.append(_possession_line(obs, my_team, owner_positions))
@@ -295,6 +299,7 @@ class Narrator:
     """Convenience wrapper bound to a single team perspective."""
 
     def __init__(self, team: str = "home") -> None:
+        """Bind the narrator to a team perspective ("home" or "away")."""
         self.team = team
 
     def narrate(self, obs: dict) -> str:

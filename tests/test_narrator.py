@@ -6,6 +6,7 @@ import pytest
 
 from simulator.narrator import GAME_MODES, Narrator, narrate
 
+
 # Eleven default positions per team in the gfootball attacking-toward-+x layout
 # for the home side (away mirrors these). Roughly: GK deep, defenders, mids,
 # forwards. Values are illustrative, not from a real engine dump.
@@ -40,7 +41,7 @@ _AWAY = [
 _STILL = [[0.0, 0.0] for _ in range(11)]
 
 
-def _base_obs(**overrides) -> dict:
+def _base_obs(**overrides: object) -> dict:
     """A normal-play observation; override any field via kwargs."""
     obs = {
         "left_team": [list(p) for p in _HOME],
@@ -59,11 +60,12 @@ def _base_obs(**overrides) -> dict:
 
 
 def test_kickoff_contains_expected_phrases():
+    """Kickoff renders the clock, score, mode label and every role."""
     obs = _base_obs(game_mode=1, steps_remaining=3000)
     report = narrate(obs, team="home")
 
     assert "MATCH STATE (0:00)" in report
-    assert "Score: Home 0 – Away 0" in report
+    assert "Score: Home 0 – Away 0" in report  # noqa: RUF001 - en dash matches narrator output
     assert "KickOff" in report
     assert "YOUR TEAM: home" in report
     # All eleven roles are described.
@@ -72,6 +74,7 @@ def test_kickoff_contains_expected_phrases():
 
 
 def test_normal_play_with_home_possession():
+    """Home possession names the carrier, zone and on-the-ball phrase."""
     # Home ST carries the ball in the attacking third.
     obs = _base_obs(
         ball=[0.20, 0.00, 0.0],
@@ -83,7 +86,7 @@ def test_normal_play_with_home_possession():
     report = narrate(obs, team="home")
 
     assert "MATCH STATE (45:00)" in report
-    assert "Score: Home 1 – Away 0" in report
+    assert "Score: Home 1 – Away 0" in report  # noqa: RUF001 - en dash matches narrator output
     assert "POSSESSION: Home" in report
     assert "ST has the ball" in report
     assert "attacking third" in report
@@ -92,6 +95,7 @@ def test_normal_play_with_home_possession():
 
 
 def test_contested_loose_ball():
+    """An unowned ball reads as contested with a loose-ball note."""
     obs = _base_obs(ball=[0.0, 0.0, 0.0], ball_owned_team=-1)
     report = narrate(obs, team="home")
     assert "POSSESSION: Contested" in report
@@ -99,6 +103,7 @@ def test_contested_loose_ball():
 
 
 def test_corner_kick_phrases():
+    """A corner game mode surfaces the set-piece line."""
     # Ball deep in the opposition corner; away has a corner against home? No --
     # narrate from home view, ball near opposition goal line corner.
     obs = _base_obs(
@@ -114,6 +119,7 @@ def test_corner_kick_phrases():
 
 
 def test_goal_kick_phrases():
+    """A goal kick puts the GK on the ball in their own box."""
     obs = _base_obs(
         game_mode=2,
         ball=[-0.95, 0.0, 0.0],
@@ -129,6 +135,7 @@ def test_goal_kick_phrases():
 
 
 def test_away_perspective_mirrors_zones():
+    """The away view mirrors zones relative to the home view."""
     # Ball at x=+0.9 is the home attacking end == the away defensive end.
     obs = _base_obs(
         ball=[0.90, 0.0, 0.0],
@@ -140,12 +147,14 @@ def test_away_perspective_mirrors_zones():
 
     assert "YOUR TEAM: away" in away_report
     assert "POSSESSION: Away" in away_report
-    # Same ball: attacking third for home, defensive third for away.
-    assert "attacking third" in home_report
-    assert "defensive third" in away_report
+    # Same ball, mirrored: it sits in home's opposition box, which is away's
+    # own box. The perspective flip must produce opposite zone phrasing.
+    assert "opposition penalty area" in home_report
+    assert "own penalty area" in away_report
 
 
 def test_pressure_description_changes_with_opponents():
+    """Many opponents deep in our third trigger the heavy-pressure read."""
     # Push five away players deep into the home defensive third.
     away = [list(p) for p in _AWAY]
     for i in range(5):
@@ -156,16 +165,19 @@ def test_pressure_description_changes_with_opponents():
 
 
 def test_narrator_class_binds_team():
+    """The Narrator class produces the same output as the bound function call."""
     obs = _base_obs()
     assert narrate(obs, "away") == Narrator("away").narrate(obs)
 
 
 def test_invalid_team_raises():
-    with pytest.raises(ValueError):
+    """An unknown team perspective raises ValueError."""
+    with pytest.raises(ValueError, match="team must be one of"):
         narrate(_base_obs(), team="sideline")
 
 
 def test_all_game_modes_render_without_error():
+    """Every supported game mode renders a report without raising."""
     for mode in GAME_MODES:
         report = narrate(_base_obs(game_mode=mode), team="home")
         assert "MATCH STATE" in report
