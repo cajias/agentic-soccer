@@ -7,6 +7,8 @@ most recent tick's line via an atomic rewrite (write `.tmp` then ``Path.replace`
 from __future__ import annotations
 
 import json
+import os
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -50,6 +52,9 @@ class ReplayLogger:
             self.path.parent.mkdir(parents=True, exist_ok=True)
         # Open in append mode so reopening an existing replay continues it.
         self._fh = self.path.open("a", encoding="utf-8")
+        # Guards every write: in the single-process launch the simulator thread
+        # appends ticks while the two coach threads annotate their tick line.
+        self._lock = threading.Lock()
 
     def log_tick(self, tick: int, t: float, obs: dict, score: list[int]) -> None:
         """Append one tick to the replay log.
@@ -68,8 +73,9 @@ class ReplayLogger:
             "ball": {"x": float(ball[0]), "y": float(ball[1])},
             "score": list(score),
         }
-        self._fh.write(json.dumps(record) + "\n")
-        self._fh.flush()
+        with self._lock:
+            self._fh.write(json.dumps(record) + "\n")
+            self._fh.flush()
 
     def log_coach_cycle(self, tick: int, team: str, alerts: list[dict]) -> None:
         """Embed a ``coach_cycle`` block into the line for ``tick``.
@@ -84,28 +90,32 @@ class ReplayLogger:
             {player_id, coach_reasoning, player_decision, override_written,
              target_position, duration_ticks, response_time_s}
         """
-        # Ensure buffered writes are on disk before we read the file back.
-        self._fh.flush()
-        with self.path.open(encoding="utf-8") as fh:
-            lines = fh.readlines()
+        with self._lock:
+            # Ensure buffered writes are on disk before we read the file back.
+            self._fh.flush()
+            with self.path.open(encoding="utf-8") as fh:
+                lines = fh.readlines()
 
-        idx, record = self._locate_tick(lines, tick)
-        if idx is None:
-            return  # no tick lines written yet — nothing to annotate
+            idx, record = self._locate_tick(lines, tick)
+            if idx is None:
+                return  # no tick lines written yet — nothing to annotate
 
-        block = {"tick": tick, "team": team, "alerts": alerts}
-        record.setdefault("coach_cycle", []).append(block)
-        lines[idx] = json.dumps(record) + "\n"
+            block = {"tick": tick, "team": team, "alerts": alerts}
+            record.setdefault("coach_cycle", []).append(block)
+            lines[idx] = json.dumps(record) + "\n"
 
-        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        with tmp.open("w", encoding="utf-8") as fh:
-            fh.writelines(lines)
-            fh.flush()
-        tmp.replace(self.path)
+            tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+            with tmp.open("w", encoding="utf-8") as fh:
+                fh.writelines(lines)
+                fh.flush()
+                # fsync the temp file before the rename so a crash mid-write
+                # cannot leave a truncated replay behind the atomic swap.
+                os.fsync(fh.fileno())
+            tmp.replace(self.path)
 
-        # The appended fd now points at the replaced inode; reopen for appends.
-        self._fh.close()
-        self._fh = self.path.open("a", encoding="utf-8")
+            # The appended fd now points at the replaced inode; reopen for appends.
+            self._fh.close()
+            self._fh = self.path.open("a", encoding="utf-8")
 
     @staticmethod
     def _locate_tick(lines: list[str], tick: int) -> tuple[int | None, dict]:
@@ -129,6 +139,7 @@ class ReplayLogger:
 
     def close(self) -> None:
         """Flush and close the underlying file handle."""
-        if not self._fh.closed:
-            self._fh.flush()
-            self._fh.close()
+        with self._lock:
+            if not self._fh.closed:
+                self._fh.flush()
+                self._fh.close()
