@@ -4,8 +4,11 @@
 Each check is defensive: any failure (missing module, no running server, no
 replay file) is caught and counts as "not met" rather than crashing the runner.
 Heavy/optional dependencies (requests, pygame, the engine) are imported lazily
-inside each check so this script stays importable even before those parts of
-the system exist.
+inside each check so this script stays importable even before those parts of the
+system exist — and before the gfootball Docker image is built.
+
+M1 runs the engine in-process; M2/M4 talk to a *running* ``simulator.py`` over
+HTTP (cross-process), so start the simulator first for those to pass.
 """
 
 from __future__ import annotations
@@ -15,9 +18,7 @@ import os
 import sys
 from pathlib import Path
 
-
-# Headless rendering: the engine and pygame must not open a real window or
-# audio device when these checks run in CI or over SSH.
+# Headless: the engine and pygame must not open a real window or audio device.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
@@ -31,6 +32,9 @@ _M1_STEPS = 50
 _M1_REPLAY_PATH = "match/test_replay.jsonl"
 _REPLAY_PATH = "match/replay.jsonl"
 _TOTAL_MILESTONES = 5
+
+# Team tokens (mirror mcp_server.server.TOKENS); every tool call needs one.
+_TOKENS = {"home": "home-secret-abc", "away": "away-secret-xyz"}
 
 
 def check_m1() -> bool:
@@ -52,7 +56,12 @@ def check_m2() -> bool:
     try:
         import requests  # noqa: PLC0415 - optional, lazy
 
-        resp = requests.get(_MCP_URL, params={"team": "home"}, timeout=_HTTP_TIMEOUT)
+        resp = requests.get(
+            _MCP_URL,
+            params={"team": "home"},
+            headers={"Authorization": f"Bearer {_TOKENS['home']}"},
+            timeout=_HTTP_TIMEOUT,
+        )
     except Exception as e:  # noqa: BLE001 - any failure means the milestone is unmet
         print(f"M2 fail: {e}", file=sys.stderr)
         return False
@@ -82,21 +91,28 @@ def check_m4() -> bool:
         results: list[bool] = []
 
         def try_team(team: str, token: str) -> None:
-            """Hit the status endpoint as one team and record success."""
-            resp = requests.get(
-                _MCP_URL,
-                params={"team": team},
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=_HTTP_TIMEOUT,
-            )
-            results.append(bool(resp.ok))
+            """Hit the status endpoint as one team and record success.
 
-        t1 = threading.Thread(target=try_team, args=("home", "home-secret-abc"))
-        t2 = threading.Thread(target=try_team, args=("away", "away-secret-xyz"))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+            Defensive: a connection failure records False rather than letting an
+            exception escape the worker thread.
+            """
+            try:
+                resp = requests.get(
+                    _MCP_URL,
+                    params={"team": team},
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=_HTTP_TIMEOUT,
+                )
+                results.append(bool(resp.ok))
+            except Exception as e:  # noqa: BLE001 - a down server means the milestone is unmet
+                print(f"M4 {team} fail: {e}", file=sys.stderr)
+                results.append(False)
+
+        threads = [threading.Thread(target=try_team, args=(team, token)) for team, token in _TOKENS.items()]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
     except Exception as e:  # noqa: BLE001 - any failure means the milestone is unmet
         print(f"M4 fail: {e}", file=sys.stderr)
         return False
@@ -123,7 +139,7 @@ def main() -> int:
     count = 0
     for i, check in enumerate(checks, 1):
         passed = check()
-        status = "✅" if passed else "❌"
+        status = "PASS" if passed else "----"
         print(f"M{i}: {status} {(check.__doc__ or '').strip()}")
         if passed:
             count += 1
