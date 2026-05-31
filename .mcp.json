@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "soccer-sim-home": {
+      "type": "http",
+      "url": "http://localhost:8765/mcp",
+      "headers": {
+        "Authorization": "Bearer home-secret-abc"
+      }
+    },
+    "soccer-sim-away": {
+      "type": "http",
+      "url": "http://localhost:8765/mcp",
+      "headers": {
+        "Authorization": "Bearer away-secret-xyz"
+      }
+    }
+  }
+}
