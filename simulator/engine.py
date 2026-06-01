@@ -214,30 +214,35 @@ class SoccerEngine:
                 actions.append(default_action(team_index, pos, ball))
         return actions
 
-    def _raw_observation(self) -> list[dict] | None:
+    def _raw_observation(self) -> list[dict[str, Any]] | None:
         """Return gfootball's raw per-agent observation list, or None on error.
 
         ``raw[0]`` is the absolute (home/left) frame dict carrying ``score`` and
         everything the narrator needs.
         """
         try:
-            return self.env.unwrapped.observation()
+            obs: list[dict[str, Any]] = self.env.unwrapped.observation()
         except (AttributeError, TypeError):
             return None
+        return obs
 
     @staticmethod
-    def _score_from_raw(raw: list[dict] | None) -> list[int]:
+    def _score_from_raw(raw: list[dict[str, Any]] | None) -> list[int]:
         """Read the ``[home, away]`` goal tally from a raw observation list.
 
         ``info`` carries only ``score_reward`` (a scalar delta), so the actual
         per-team score lives on the raw observation dict.
         """
+        if not raw:
+            return [0, 0]
         try:
             return [int(raw[0]["score"][0]), int(raw[0]["score"][1])]
         except (KeyError, IndexError, TypeError):
             return [0, 0]
 
-    def _publish_narration(self, raw: list[dict] | None, score: list[int]) -> None:
+    def _publish_narration(
+        self, raw: list[dict[str, Any]] | None, score: list[int]
+    ) -> None:
         """Publish per-team narrator text to the shared game state.
 
         Best-effort: narration must never interrupt the match, so any failure is

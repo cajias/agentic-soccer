@@ -17,6 +17,7 @@ same logic describes "your" half, channels, and the opposition box correctly.
 from __future__ import annotations
 
 import math
+from typing import Any
 
 
 # Player roles by squad index (same layout for both teams).
@@ -141,7 +142,7 @@ def _player_action(
 
 
 def _possession_line(
-    obs: dict,
+    obs: dict[str, Any],
     my_team: int,
     owner_positions: list[tuple[float, float]],
 ) -> str:
@@ -163,7 +164,7 @@ def _possession_line(
     return f"POSSESSION: {side} — {role} has the ball in {carrier_zone}"
 
 
-def _ball_xy(obs: dict, my_team: int) -> tuple[float, float]:
+def _ball_xy(obs: dict[str, Any], my_team: int) -> tuple[float, float]:
     """Return the ball (x, y) in our attacking-toward-+x frame."""
     ball = obs["ball"]
     xy = (ball[0], ball[1])
@@ -171,7 +172,7 @@ def _ball_xy(obs: dict, my_team: int) -> tuple[float, float]:
 
 
 def _team_points(
-    obs: dict,
+    obs: dict[str, Any],
     key: str,
     my_team: int,
 ) -> list[tuple[float, float]]:
@@ -183,7 +184,7 @@ def _team_points(
 
 
 def _game_situation(
-    obs: dict,
+    obs: dict[str, Any],
     my_team: int,
     my_positions: list[tuple[float, float]],
     opp_positions: list[tuple[float, float]],
@@ -235,7 +236,7 @@ def _game_situation(
     return " ".join(sentences)
 
 
-def narrate(obs: dict, team: str = "home") -> str:
+def narrate(obs: dict[str, Any], team: str = "home") -> str:
     """Return a coach-readable report for an observation from a team's view.
 
     Args:
@@ -302,6 +303,6 @@ class Narrator:
         """Bind the narrator to a team perspective ("home" or "away")."""
         self.team = team
 
-    def narrate(self, obs: dict) -> str:
+    def narrate(self, obs: dict[str, Any]) -> str:
         """Return a coach-readable report for the bound team."""
         return narrate(obs, self.team)

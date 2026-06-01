@@ -15,6 +15,9 @@ from typing import Any
 # Recognized teams. Used to validate inputs everywhere state is keyed by team.
 TEAMS: tuple[str, ...] = ("home", "away")
 
+# A stored override record: the override payload plus tick bookkeeping.
+OverrideRecord = dict[str, Any]
+
 
 class GameState:
     """Mutable match state shared across threads.
@@ -31,7 +34,9 @@ class GameState:
         """Initialize empty per-team narrator text and overrides at tick 0."""
         self._lock = threading.Lock()
         self.narrator_text: dict[str, str] = dict.fromkeys(TEAMS, "")
-        self.player_overrides: dict[str, dict[str, dict]] = {team: {} for team in TEAMS}
+        self.player_overrides: dict[str, dict[str, OverrideRecord]] = {
+            team: {} for team in TEAMS
+        }
         self.tick: int = 0
         # [home_goals, away_goals], set by the simulator; exposed by the REST
         # /get_match_status route. No reader depends on it yet.
@@ -78,7 +83,9 @@ class GameState:
 
     # -- overrides ----------------------------------------------------------
 
-    def set_override(self, team: str, player_id: str, override: dict) -> dict:
+    def set_override(
+        self, team: str, player_id: str, override: dict[str, Any]
+    ) -> OverrideRecord:
         """Store a behavior override for a player, stamped with the current tick.
 
         Returns the stored record (payload + ``created_tick`` + ``expires_at_tick``).
@@ -94,7 +101,7 @@ class GameState:
             self.player_overrides[team][player_id] = record
             return dict(record)
 
-    def get_active_overrides(self, team: str) -> dict[str, dict]:
+    def get_active_overrides(self, team: str) -> dict[str, OverrideRecord]:
         """Return active overrides for ``team``, deleting any that have expired.
 
         An override is expired once ``tick - created_tick >= duration_ticks``.
@@ -136,7 +143,7 @@ class GameState:
         # clear it explicitly. Positive durations expire once elapsed.
         if duration <= 0:
             return False
-        return (self.tick - record["created_tick"]) >= duration
+        return (self.tick - int(record["created_tick"])) >= duration
 
 
 def _check_team(team: str) -> None:

@@ -10,7 +10,7 @@ import json
 import os
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 
 if TYPE_CHECKING:
@@ -26,9 +26,9 @@ def _role(index: int) -> str:
     return ROLES[index] if 0 <= index < len(ROLES) else "SUB"
 
 
-def _players(team: str, positions: Sequence[Sequence[float]]) -> list[dict]:
+def _players(team: str, positions: Sequence[Sequence[float]]) -> list[dict[str, Any]]:
     """Build player records for one team from an array of (x, y) positions."""
-    players = []
+    players: list[dict[str, Any]] = []
     for i, pos in enumerate(positions):
         players.append(
             {
@@ -57,7 +57,7 @@ class ReplayLogger:
         # appends ticks while the two coach threads annotate their tick line.
         self._lock = threading.Lock()
 
-    def log_tick(self, tick: int, t: float, obs: dict, score: list[int]) -> None:
+    def log_tick(self, tick: int, t: float, obs: dict[str, Any], score: list[int]) -> None:
         """Append one tick to the replay log.
 
         ``obs`` has ``left_team`` (home positions), ``right_team`` (away
@@ -78,7 +78,7 @@ class ReplayLogger:
             self._fh.write(json.dumps(record) + "\n")
             self._fh.flush()
 
-    def log_coach_cycle(self, tick: int, team: str, alerts: list[dict]) -> None:
+    def log_coach_cycle(self, tick: int, team: str, alerts: list[dict[str, Any]]) -> None:
         """Embed a ``coach_cycle`` block into the line for ``tick``.
 
         Targets the line whose ``tick`` matches the argument (the most recent
@@ -119,14 +119,14 @@ class ReplayLogger:
             self._fh = self.path.open("a", encoding="utf-8")
 
     @staticmethod
-    def _locate_tick(lines: list[str], tick: int) -> tuple[int | None, dict]:
+    def _locate_tick(lines: list[str], tick: int) -> tuple[int | None, dict[str, Any]]:
         """Find the line to annotate for ``tick``.
 
         Returns ``(index, parsed_record)`` for the most recent line whose
         ``tick`` matches, else the last valid line, else ``(None, {})``.
         """
         last_idx: int | None = None
-        last_record: dict = {}
+        last_record: dict[str, Any] = {}
         for i in range(len(lines) - 1, -1, -1):
             try:
                 record = json.loads(lines[i])
