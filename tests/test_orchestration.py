@@ -9,24 +9,23 @@ from __future__ import annotations
 
 import pytest
 
+import check_milestones
+import team_loop
+
 
 def test_run_coach_rejects_unknown_team():
-    import team_loop
-
+    """run_coach raises ValueError for a team name that is not home/away."""
     with pytest.raises(ValueError, match="unknown team"):
         team_loop.run_coach("midfield")
 
 
 def test_team_loop_token_map_matches_known_teams():
-    import team_loop
-
+    """The auth token map is keyed by exactly the known teams."""
     assert set(team_loop.TOKENS) == {"home", "away"}
 
 
 def test_check_milestones_all_defensive_returns_zero(tmp_path, monkeypatch):
     """In a clean env (no gfootball/server/replay/pygame) main() returns 0, no crash."""
-    import check_milestones
-
     # Run where there is no match/replay.jsonl so M3/M5 also see nothing.
     monkeypatch.chdir(tmp_path)
     count = check_milestones.main()
@@ -34,8 +33,7 @@ def test_check_milestones_all_defensive_returns_zero(tmp_path, monkeypatch):
 
 
 def test_check_milestones_individual_checks_are_falsey(tmp_path, monkeypatch):
-    import check_milestones
-
+    """Each milestone check returns False (not raises) when its dependency is absent."""
     monkeypatch.chdir(tmp_path)
     # Each returns a bool and does not raise when its dependency is unavailable.
     assert check_milestones.check_m1() is False  # gfootball absent

@@ -32,8 +32,12 @@ import time
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+# Default MCP_HOST to all-interfaces: this runner only executes inside the
+# gfootball Docker image, where the host must reach the in-container server.
+# The bind is env-gated (MCP_HOST) and the MCP tools are token-authed.
 os.environ.setdefault(
-    "MCP_HOST", "0.0.0.0",
+    "MCP_HOST",
+    "0.0.0.0",  # noqa: S104 - in-container runner; host must reach the server, token-authed
 )
 
 _MATCH_STEPS = 400

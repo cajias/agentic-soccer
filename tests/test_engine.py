@@ -15,6 +15,13 @@ import types
 import numpy as np
 import pytest
 
+from simulator.engine import (
+    RIGHT,
+    SoccerEngine,
+    _direction_action,
+    default_action,
+)
+
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -57,7 +64,9 @@ class _FakeEnv:
         self._t = 0
         return np.zeros((22, 115), dtype=np.float32)
 
-    def step(self, actions):
+    def step(
+        self, actions: list[int],
+    ) -> tuple[np.ndarray, np.ndarray, bool, dict[str, float]]:
         assert len(actions) == 22, "engine must supply 22 actions"
         assert all(0 <= int(a) <= 18 for a in actions), "actions must be valid ints"
         self.last_actions = list(actions)
@@ -131,21 +140,18 @@ def _override_record(target: list[float], duration: int = 0) -> dict:
     ],
 )
 def test_direction_action(dx, dy, expected):
-    from simulator.engine import _direction_action
-
+    """Cardinal/diagonal deltas map to the expected gfootball action ids."""
     assert _direction_action(dx, dy) == expected
 
 
 def test_default_action_goalkeeper_holds_line():
-    from simulator.engine import RIGHT, default_action
-
+    """The goalkeeper heuristic never sends the keeper further upfield."""
     # GK far from its goal line (own goal at x=-1) should not run further upfield.
     assert default_action(0, np.array([0.0, 0.0]), np.array([0.0, 0.0])) != RIGHT
 
 
 def test_default_action_returns_valid_action():
-    from simulator.engine import default_action
-
+    """Every role's heuristic returns a valid gfootball action id (0-18)."""
     for idx in range(11):
         action = default_action(idx, np.array([0.1, 0.0]), np.array([0.3, 0.2]))
         assert 0 <= action <= 18
@@ -155,11 +161,10 @@ def test_default_action_returns_valid_action():
 # Full run
 # ---------------------------------------------------------------------------
 def test_engine_runs_short_match(tmp_path, monkeypatch):
+    """A short match advances ticks, scores, narrates, and writes a replay."""
     env = _FakeEnv()
     _install_fake_gfootball(monkeypatch, env)
     gs = _FakeGameState()
-
-    from simulator.engine import SoccerEngine
 
     replay = tmp_path / "replay.jsonl"
     engine = SoccerEngine(replay_path=str(replay), match_steps=50, game_state=gs)
@@ -174,7 +179,8 @@ def test_engine_runs_short_match(tmp_path, monkeypatch):
     # Tick was published to the shared state, and narrator text for both teams.
     assert gs.tick == 50
     assert gs.tick_history[:3] == [0, 1, 2]
-    assert gs.narrator["home"] and gs.narrator["away"]
+    assert gs.narrator["home"]
+    assert gs.narrator["away"]
 
     lines = replay.read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 50
@@ -187,12 +193,11 @@ def test_engine_runs_short_match(tmp_path, monkeypatch):
 
 
 def test_override_steers_player(tmp_path, monkeypatch):
+    """An active target_position override steers the player toward the target."""
     env = _FakeEnv()
     _install_fake_gfootball(monkeypatch, env)
     # Home player 0 sits at (0, 0); override target (1, 0) -> move RIGHT.
     gs = _FakeGameState({"home": {"0": _override_record([1.0, 0.0])}, "away": {}})
-
-    from simulator.engine import RIGHT, SoccerEngine
 
     engine = SoccerEngine(replay_path=str(tmp_path / "r.jsonl"), match_steps=1, game_state=gs)
     engine.run()
@@ -207,10 +212,9 @@ def test_override_expiry_handled_by_game_state(tmp_path, monkeypatch):
     _install_fake_gfootball(monkeypatch, env)
     gs = _FakeGameState({"home": {}, "away": {}})
 
-    from simulator.engine import SoccerEngine
-
     engine = SoccerEngine(replay_path=str(tmp_path / "r.jsonl"), match_steps=3, game_state=gs)
     stats = engine.run()
 
     assert stats["ticks"] == 3
-    assert env.last_actions is not None and len(env.last_actions) == 22
+    assert env.last_actions is not None
+    assert len(env.last_actions) == 22

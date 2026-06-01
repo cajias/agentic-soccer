@@ -30,8 +30,14 @@ def _start_mcp_server() -> None:
     """
     from mcp_server.server import PORT, mcp  # noqa: PLC0415
 
+    # Bind all interfaces: this is the in-container server entrypoint, and
+    # 127.0.0.1 would be unreachable from the host even with -p 8765:8765.
+    # Exposure is limited to the Docker port mapping and the MCP tools are
+    # token-authed; the host bind is the deliberate purpose of this entrypoint.
     mcp.run(
-        transport="http", host="0.0.0.0", port=PORT,
+        transport="http",
+        host="0.0.0.0",  # noqa: S104 - container entrypoint; host must reach the server
+        port=PORT,
     )
 
 

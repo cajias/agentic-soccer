@@ -20,18 +20,20 @@ from simulator.engine import SoccerEngine
 
 STEPS = 400
 TARGET_PLAYER = 9  # home RW (Salah)
+# Minimum avg-x shift (in gfootball pitch units) we treat as a real behaviour change.
+MIN_MEANINGFUL_SHIFT = 0.02
 OVERRIDE = {"target_position": [0.7, 0.0], "duration_ticks": STEPS,
             "reasoning": "demo: push RW high and central"}
 
 
 def _avg_x(replay_path: str, team: str, player_id: int) -> float:
     """Mean x-position of one player across all ticks in a replay."""
-    xs = []
-    for line in Path(replay_path).read_text().splitlines():
-        rec = json.loads(line)
-        for p in rec["players"]:
-            if p["team"] == team and p["id"] == player_id:
-                xs.append(p["x"])
+    xs = [
+        p["x"]
+        for line in Path(replay_path).read_text().splitlines()
+        for p in json.loads(line)["players"]
+        if p["team"] == team and p["id"] == player_id
+    ]
     return sum(xs) / len(xs) if xs else 0.0
 
 
@@ -43,6 +45,7 @@ def _coach_cycles(replay_path: str) -> int:
 
 
 def main() -> None:
+    """Run the baseline and coached matches and print a quantitative diff."""
     # BEFORE: no overrides, pure built-in AI.
     GAME_STATE.clear_all() if hasattr(GAME_STATE, "clear_all") else None
     before = "match/replay_before.jsonl"
@@ -61,7 +64,7 @@ def main() -> None:
     print(f"BEFORE  coach_cycles={_coach_cycles(before)}  RW avg_x={b_x:+.3f}")
     print(f"AFTER   coach_cycles={_coach_cycles(after)}  RW avg_x={a_x:+.3f}")
     print(f"DELTA   RW avg_x shifted {a_x - b_x:+.3f} toward goal "
-          f"({'measurable change' if abs(a_x - b_x) > 0.02 else 'NO change'})")
+          f"({'measurable change' if abs(a_x - b_x) > MIN_MEANINGFUL_SHIFT else 'NO change'})")
 
 
 if __name__ == "__main__":
