@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import agents.coach_loop as coach_loop_module
 import check_milestones
 import team_loop
 
@@ -23,6 +24,29 @@ def test_run_coach_rejects_unknown_team() -> None:
     """run_coach raises ValueError for a team name that is not home/away."""
     with pytest.raises(ValueError, match="unknown team"):
         team_loop.run_coach("midfield")
+
+
+def test_run_coach_valid_team_invokes_coach_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """run_coach('home') drives agents.coach_loop.coach_loop with team='home'.
+
+    The valid path lazy-imports ``coach_loop``; we replace it with a recording
+    fake so no HTTP client, LLM, or gfootball is touched. ``max_cycles=0`` is
+    forwarded so the real loop would do zero work even if reached.
+    """
+    calls: list[dict[str, object]] = []
+
+    def fake_coach_loop(team: str, **kwargs: object) -> None:
+        calls.append({"team": team, **kwargs})
+
+    monkeypatch.setattr(coach_loop_module, "coach_loop", fake_coach_loop)
+
+    team_loop.run_coach("home", max_cycles=0)
+
+    assert len(calls) == 1
+    assert calls[0]["team"] == "home"
+    assert calls[0]["max_cycles"] == 0
+    # A tick_source default is supplied by run_coach when none is passed.
+    assert callable(calls[0]["tick_source"])
 
 
 def test_team_loop_token_map_matches_known_teams() -> None:
