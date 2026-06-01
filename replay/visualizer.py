@@ -72,8 +72,8 @@ HEIGHT = 600
 # is applied in exactly one place and every line/box/circle inherits it.
 TOP_Y = 56
 BOTTOM_Y = 532
-FAR_HALF = 250.0  # half pitch width at the far touchline (narrow)
-NEAR_HALF = 560.0  # half pitch width at the near touchline (wide)
+FAR_HALF = 265.0  # half pitch width at the far touchline (narrow)
+NEAR_HALF = 580.0  # half pitch width at the near touchline (wide)
 SHEAR_PX = 0.0  # symmetric trapezoid (Jaleco Goal! has no sideways lean)
 
 DEPTH_FAR = 0.45
@@ -105,6 +105,9 @@ HUD_HINT_CYAN = (120, 210, 240)
 SPRITE_W = 24
 SPRITE_H = 32
 SPRITE_SCALE = 3.0
+# Global multiplier on sprite size; <1 "zooms out" (smaller players, more grass
+# between them) without changing the pitch projection or the asset manifest.
+SPRITE_ZOOM = 0.78
 FRAMES_PER_SHEET = 5
 RUN_INDICES = (1, 2, 3, 4)
 IDLE_INDEX = 0
@@ -652,7 +655,7 @@ def _blit_sprite(surface: pygame.Surface, spr: _Sprite) -> None:
     frame = spr.sheet[spr.index]
     if spr.flip:
         frame = pygame.transform.flip(frame, True, False)
-    scale = spr.base_scale * spr.depth
+    scale = spr.base_scale * spr.depth * SPRITE_ZOOM
     w = max(1, int(spr.frame_w * scale))
     h = max(1, int(spr.frame_h * scale))
     scaled = pygame.transform.scale(frame, (w, h))
@@ -817,7 +820,7 @@ def draw_active_marker(surface: pygame.Surface, player: Player | None, assets: A
     rh = max(5, int(12 * depth))
     arc_rect = pygame.Rect(int(sx - rw / 2), int(sy - rh / 2), rw, rh)
     pygame.draw.arc(surface, MARKER_WHITE, arc_rect, math.pi, 2 * math.pi, 3)
-    head_y = int(sy - assets.frame_h * assets.sprite_scale * depth - 8)
+    head_y = int(sy - assets.frame_h * assets.sprite_scale * depth * SPRITE_ZOOM - 8)
     radius = max(6, int(9 * depth))
     pygame.draw.circle(surface, MARKER_WHITE, (int(sx), head_y), radius)
     pygame.draw.circle(surface, TEXT_DARK, (int(sx), head_y), radius, 1)

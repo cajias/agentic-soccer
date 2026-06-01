@@ -28,6 +28,7 @@ from replay.visualizer import (
     HEIGHT,
     HUD_BOTTOM_H,
     HUD_TOP,
+    SPRITE_ZOOM,
     WIDTH,
     Frame,
     draw_pitch,
@@ -306,7 +307,8 @@ def test_active_marker_drawn_near_player(headless_pygame: ModuleType) -> None:
     frame = _frame([_player(7, "home", px, py)], ball=(px, py))
     assets = load_assets()
     sx, sy, depth = project(px, py)
-    head_y = int(sy - assets.frame_h * assets.sprite_scale * depth - 8)
+    # Mirror the renderer's badge anchor, which scales the sprite by SPRITE_ZOOM.
+    head_y = int(sy - assets.frame_h * assets.sprite_scale * depth * SPRITE_ZOOM - 8)
     box = (int(sx) - 16, head_y - 12, int(sx) + 16, head_y + 14)
     assert box[3] < _BAR_Y, "marker badge must sit on the pitch, not in the HUD"
 
