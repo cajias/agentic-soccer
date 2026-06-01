@@ -74,7 +74,7 @@ TOP_Y = 56
 BOTTOM_Y = 532
 FAR_HALF = 250.0  # half pitch width at the far touchline (narrow)
 NEAR_HALF = 560.0  # half pitch width at the near touchline (wide)
-SHEAR_PX = 280.0  # total horizontal lean from far to near touchline
+SHEAR_PX = 0.0  # symmetric trapezoid (Jaleco Goal! has no sideways lean)
 
 DEPTH_FAR = 0.45
 DEPTH_NEAR = 1.2
