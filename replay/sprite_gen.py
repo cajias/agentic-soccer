@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 
 # Headless: no display is available in CI / agent environments. Must be set
@@ -147,7 +148,7 @@ def _outline_silhouette(surf: pygame.Surface) -> None:
 # A "pose" describes the two legs and two arms for a frame.
 
 
-def _draw_player_frame(kit: dict, pose: str, bob: int) -> pygame.Surface:  # noqa: C901, PLR0915 - procedural sprite art: one statement per body part, kept inline for clarity
+def _draw_player_frame(kit: dict[str, Any], pose: str, bob: int) -> pygame.Surface:  # noqa: C901, PLR0915 - procedural sprite art: one statement per body part, kept inline for clarity
     """Draw one 16x24 footballer frame onto a transparent surface.
 
     ``pose`` is one of: ``idle``, ``contactA``, ``passA``, ``contactB``, ``passB``.
