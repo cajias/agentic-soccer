@@ -17,6 +17,7 @@ from pathlib import Path
 from mcp_server.server import GAME_STATE
 from simulator.engine import SoccerEngine
 
+
 STEPS = 400
 TARGET_PLAYER = 9  # home RW (Salah)
 OVERRIDE = {"target_position": [0.7, 0.0], "duration_ticks": STEPS,

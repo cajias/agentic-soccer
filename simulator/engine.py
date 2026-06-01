@@ -40,6 +40,7 @@ import numpy as np
 from replay.logger import ROLES, ReplayLogger
 from simulator.narrator import narrate
 
+
 if TYPE_CHECKING:
     from mcp_server.game_state import GameState
 

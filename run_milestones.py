@@ -29,11 +29,12 @@ import sys
 import threading
 import time
 
+
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 os.environ.setdefault(
-    "MCP_HOST", "0.0.0.0"
-)  # noqa: S104 - container needs external bind
+    "MCP_HOST", "0.0.0.0",
+)
 
 _MATCH_STEPS = 400
 _OVERRIDE_AT_TICK = 40
@@ -82,7 +83,7 @@ def main() -> int:
     )
     set_replay_logger(engine.logger)
     threading.Thread(
-        target=_scripted_override, args=(GAME_STATE,), daemon=True, name="override"
+        target=_scripted_override, args=(GAME_STATE,), daemon=True, name="override",
     ).start()
 
     stats = engine.run()

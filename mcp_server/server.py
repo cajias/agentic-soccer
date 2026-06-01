@@ -29,6 +29,7 @@ from starlette.responses import JSONResponse, Response
 
 from mcp_server.game_state import GameState
 
+
 if TYPE_CHECKING:
     from starlette.requests import Request
 

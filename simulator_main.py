@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+
 # Force gfootball's SDL backend to run headless before the engine is imported.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")

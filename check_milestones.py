@@ -18,6 +18,7 @@ import os
 import sys
 from pathlib import Path
 
+
 # Headless: the engine and pygame must not open a real window or audio device.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")

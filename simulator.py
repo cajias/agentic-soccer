@@ -28,6 +28,7 @@ import threading
 import time
 from typing import Any
 
+
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 

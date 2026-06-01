@@ -29,3 +29,24 @@
 {"ts":"2026-05-30T22:50:55.517Z","hook":"subagent-context","action":"skip","reason":"no-active-tsv"}
 {"ts":"2026-05-31T12:46:00.958Z","hook":"iteration-context","action":"skip","iterationCount":3}
 {"ts":"2026-05-31T12:50:22.537Z","hook":"iteration-context","action":"skip","iterationCount":4}
+{"ts":"2026-05-31T13:14:02.972Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":".env"}
+{"ts":"2026-05-31T13:15:56.862Z","hook":"stop-notify","projectName":"agentic-soccer","duration":"15h 44m","iterations":0}
+{"ts":"2026-05-31T13:21:36.247Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":"secret"}
+{"ts":"2026-05-31T13:26:03.639Z","hook":"iteration-context","action":"skip","iterationCount":5,"reason":"no-tsv"}
+{"ts":"2026-05-31T13:37:02.413Z","hook":"dev-rules-reminder","action":"inject","iterationCount":5}
+{"ts":"2026-05-31T13:37:02.575Z","hook":"iteration-context","action":"skip","iterationCount":6}
+{"ts":"2026-05-31T13:40:01.105Z","hook":"iteration-context","action":"skip","iterationCount":7}
+{"ts":"2026-05-31T13:43:17.294Z","hook":"dev-rules-reminder","action":"inject","iterationCount":0}
+{"ts":"2026-05-31T13:43:17.296Z","hook":"iteration-context","action":"skip","iterationCount":1}
+{"ts":"2026-05-31T13:49:53.902Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":".key"}
+{"ts":"2026-05-31T13:53:45.416Z","hook":"scout-block","action":"block","tool":"Bash","path":"build/run","matched":"build/run"}
+{"ts":"2026-05-31T13:55:11.214Z","hook":"scout-block","action":"block","tool":"Bash","path":"build/run/rmi","matched":"build/run/rmi"}
+{"ts":"2026-05-31T13:55:18.201Z","hook":"iteration-context","action":"skip","iterationCount":2}
+{"ts":"2026-05-31T13:55:43.816Z","hook":"scout-block","action":"block","tool":"Bash","path":"build/run","matched":"build/run"}
+{"ts":"2026-05-31T14:04:57.764Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":".env"}
+{"ts":"2026-05-31T14:05:22.707Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":".env"}
+{"ts":"2026-05-31T14:09:01.110Z","hook":"iteration-context","action":"skip","iterationCount":8}
+{"ts":"2026-05-31T20:29:27.124Z","hook":"stop-notify","projectName":"agentic-soccer","duration":"23h 5m","iterations":0}
+{"ts":"2026-05-31T20:35:28.530Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":".key"}
+{"ts":"2026-05-31T20:42:29.081Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":"secret"}
+{"ts":"2026-05-31T20:47:43.172Z","hook":"stop-notify","projectName":"agentic-soccer","duration":"23h 0m","iterations":0}

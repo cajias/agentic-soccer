@@ -31,8 +31,8 @@ def _start_mcp_server() -> None:
     from mcp_server.server import PORT, mcp  # noqa: PLC0415
 
     mcp.run(
-        transport="http", host="0.0.0.0", port=PORT
-    )  # noqa: S104 - container needs external bind
+        transport="http", host="0.0.0.0", port=PORT,
+    )
 
 
 def _run_match() -> int:
