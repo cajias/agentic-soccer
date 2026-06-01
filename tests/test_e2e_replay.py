@@ -21,14 +21,9 @@ import pytest
 from replay.visualizer import (
     HEIGHT,
     WIDTH,
-    _draw_ball,
-    _draw_boxes,
-    _draw_coach_overlay,
-    _draw_hud,
-    _draw_pitch,
-    _draw_players,
-    _load_font,
+    load_assets,
     load_replay,
+    render_frame,
 )
 
 
@@ -138,22 +133,22 @@ def headless_pygame() -> Iterator[ModuleType]:
 
 
 def test_replay_renders_headless(tmp_path: Path, headless_pygame: ModuleType) -> None:
-    """Every draw helper runs on real frames -- including the coach overlay."""
+    """``render_frame`` draws every frame headlessly -- including coach overlay."""
     pygame = headless_pygame
 
     frames = load_replay(_write_replay(tmp_path / "replay.jsonl"))
     surface = pygame.Surface((WIDTH, HEIGHT))
-    font = _load_font(12)
+    assets = load_assets()
 
-    for frame in frames:
-        _draw_pitch(surface)
-        _draw_boxes(surface)
-        _draw_players(surface, frame, font, set())
-        _draw_ball(surface, frame)
-        _draw_hud(surface, frame, font, 1.0)
-        # Render the coach overlay on whichever frame carries a cycle.
-        if frame.coach_cycles:
-            _draw_coach_overlay(surface, frame, frame.coach_cycles, font)
+    # Render every frame (animation reads the previous frame internally).
+    for index in range(len(frames)):
+        render_frame(surface, frames, index, assets)
 
-    # Sanity: the coach frame exercised the overlay path at least once.
+    # The coach-cycle frame (index 2) must paint something other than the
+    # background -- proving sprites/pitch/overlay actually rendered.
+    coach_index = next(i for i, f in enumerate(frames) if f.coach_cycles)
+    surface.fill((0, 0, 0))
+    render_frame(surface, frames, coach_index, assets)
+    colours = {surface.get_at((x, y))[:3] for x in range(0, WIDTH, 24) for y in range(0, HEIGHT, 24)}
+    assert len(colours) > 1, "frame rendered as a flat colour"
     assert any(f.coach_cycles for f in frames)
