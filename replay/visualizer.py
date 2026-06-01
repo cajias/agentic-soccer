@@ -29,10 +29,14 @@ Perspective projection
 :func:`project` maps world ``(x, y)`` to ``(screen_x, screen_y, depth_scale)``.
 Let ``t = (y + Y_EXTENT) / (2 * Y_EXTENT)`` run 0 at the far touchline (top,
 narrow) to 1 at the near touchline (bottom, wide). The pitch half-width and the
-vertical position lerp linearly with ``t``, producing a trapezoid; ``depth_scale``
-lerps from ``DEPTH_FAR`` (0.55) to ``DEPTH_NEAR`` (1.0). Sprites and the ball are
-scaled by ``depth_scale`` and depth-sorted by projected ``screen_y`` (painter's
-algorithm) so nearer figures overlap farther ones.
+vertical position lerp linearly with ``t``; a horizontal *shear* of
+``SHEAR_PX`` that grows toward the far end leans the vertical pitch lines
+diagonally, turning the trapezoid into the skewed parallelogram of Jaleco's
+*Goal!*. ``depth_scale`` lerps from ``DEPTH_FAR`` to ``DEPTH_NEAR`` (a wide range
+so near players are clearly larger). Sprites and the ball are scaled by
+``depth_scale`` and depth-sorted by projected ``screen_y`` (painter's algorithm)
+so nearer figures overlap farther ones. Every pitch marking routes through
+:func:`project`, so all lines/boxes/circles inherit the shear automatically.
 
 Run::
 
@@ -61,40 +65,53 @@ Y_EXTENT = 0.42
 WIDTH = 960
 HEIGHT = 600
 
-# Trapezoid anchors: the far (y=-Y_EXTENT) touchline is high and narrow, the
-# near (y=+Y_EXTENT) touchline is low and wide.
-TOP_Y = 120
-BOTTOM_Y = 560
+# Skewed-parallelogram anchors: the far (y=-Y_EXTENT) touchline is high and
+# narrow, the near (y=+Y_EXTENT) touchline is low and wide. A horizontal SHEAR
+# that grows toward the far end leans the vertical pitch lines diagonally (the
+# Jaleco "Goal!" look). All markings route through :func:`project`, so the shear
+# is applied in exactly one place and every line/box/circle inherits it.
+TOP_Y = 56
+BOTTOM_Y = 532
 FAR_HALF = 250.0  # half pitch width at the far touchline (narrow)
-NEAR_HALF = 440.0  # half pitch width at the near touchline (wide)
+NEAR_HALF = 560.0  # half pitch width at the near touchline (wide)
+SHEAR_PX = 280.0  # total horizontal lean from far to near touchline
 
-DEPTH_FAR = 0.55
-DEPTH_NEAR = 1.0
+DEPTH_FAR = 0.45
+DEPTH_NEAR = 1.2
 
-HUD_TOP = 64  # reserve the top band for the score/clock HUD
+HUD_TOP = 64  # reserve a thin top band for the coach banner
+HUD_BOTTOM_H = 76  # height of the Goal!-style bottom score bar
 
 # --- Colours (16-bit palette) -----------------------------------------------
-BG_DARK = (18, 30, 14)
-PITCH_GREEN = (45, 90, 27)
-PITCH_STRIPE = (52, 102, 31)
-LINE_WHITE = (235, 235, 235)
-HOME_RED = (204, 34, 34)
-AWAY_BLUE = (34, 68, 204)
-GOAL_WHITE = (220, 220, 220)
+PITCH_GREEN = (58, 142, 42)  # brighter Goal!-green base
+PITCH_STRIPE = (66, 158, 48)  # finer, slightly lighter mow stripe
+LINE_WHITE = (238, 238, 238)
+HOME_RED = (212, 40, 40)
+AWAY_BLUE = (42, 78, 214)
+GOAL_WHITE = (236, 236, 236)
+NET_GREY = (206, 214, 224)
 SHADOW = (0, 0, 0)
-TEXT_WHITE = (240, 240, 240)
+TEXT_WHITE = (242, 242, 242)
 TEXT_DARK = (16, 16, 16)
 BUBBLE_BG = (250, 250, 235)
 OVERRIDE_YELLOW = (245, 224, 66)
+MARKER_WHITE = (250, 250, 250)
+HUD_BAR_BG = (14, 30, 12)
+HUD_HINT_CYAN = (120, 210, 240)
 
 # --- Sprite geometry ---------------------------------------------------------
-SPRITE_W = 16
-SPRITE_H = 24
-SPRITE_SCALE = 4
+# Frame size and scale are read from the sprite manifest at load time (sprite
+# assets may be regenerated at a larger size). These are fallback defaults.
+SPRITE_W = 24
+SPRITE_H = 32
+SPRITE_SCALE = 3.0
+FRAMES_PER_SHEET = 5
 RUN_INDICES = (1, 2, 3, 4)
 IDLE_INDEX = 0
 RUN_TICKS_PER_FRAME = 4  # advance the run cycle every N global ticks (~7.5fps @30)
 MOVE_THRESHOLD = 0.004  # world-units of motion that counts as "running"
+
+_MANIFEST_PATH = Path(__file__).parent / "assets" / "sprites" / "manifest.json"
 
 # --- Playback ----------------------------------------------------------------
 FPS = 30
@@ -265,13 +282,16 @@ def project(x: float, y: float) -> tuple[float, float, float]:
     Returns:
         A ``(screen_x, screen_y, depth_scale)`` tuple. ``depth_scale`` lerps
         from :data:`DEPTH_FAR` at the far touchline to :data:`DEPTH_NEAR` at
-        the near touchline.
+        the near touchline. A horizontal shear of :data:`SHEAR_PX` (centred so
+        the parallelogram stays roughly in-frame) leans the far end right of the
+        near end, so constant-x verticals become parallel slanted lines.
     """
     t = (y + Y_EXTENT) / (2 * Y_EXTENT)
     t = max(0.0, min(1.0, t))
     half_w = FAR_HALF + (NEAR_HALF - FAR_HALF) * t
     depth = DEPTH_FAR + (DEPTH_NEAR - DEPTH_FAR) * t
-    sx = WIDTH / 2 + x * half_w
+    shear = SHEAR_PX * (0.5 - t)  # far end +0.5*SHEAR, near end -0.5*SHEAR
+    sx = WIDTH / 2 + x * half_w + shear
     sy = TOP_Y + t * (BOTTOM_Y - TOP_Y)
     return sx, sy, depth
 
@@ -309,6 +329,24 @@ class Assets:
     hud_font: pygame.font.Font
     banner_font: pygame.font.Font
     small_font: pygame.font.Font
+    score_font: pygame.font.Font
+    frame_w: int
+    frame_h: int
+    sprite_scale: float
+
+
+def _load_manifest() -> dict[str, Any]:
+    """Load the sprite manifest, falling back to built-in defaults if missing.
+
+    Returns:
+        The parsed manifest dict. Empty when the file is absent, in which case
+        callers use the module-level :data:`SPRITE_W` / :data:`SPRITE_H` /
+        :data:`SPRITE_SCALE` / :data:`FRAMES_PER_SHEET` defaults.
+    """
+    if not _MANIFEST_PATH.exists():
+        return {}
+    data: dict[str, Any] = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
+    return data
 
 
 def _load_image(name: str) -> pygame.Surface:
@@ -316,12 +354,12 @@ def _load_image(name: str) -> pygame.Surface:
     return pygame.image.load(str(_SPRITE_DIR / name))
 
 
-def _slice_sheet(name: str) -> list[pygame.Surface]:
-    """Slice an 80x24 sheet into its five 16x24 animation frames."""
+def _slice_sheet(name: str, frame_w: int, frame_h: int, count: int) -> list[pygame.Surface]:
+    """Slice a single-row sheet into its ``count`` ``frame_w``x``frame_h`` frames."""
     sheet = _load_image(name)
     frames: list[pygame.Surface] = []
-    for i in range(5):
-        frame = sheet.subsurface(pygame.Rect(i * SPRITE_W, 0, SPRITE_W, SPRITE_H))
+    for i in range(count):
+        frame = sheet.subsurface(pygame.Rect(i * frame_w, 0, frame_w, frame_h))
         frames.append(frame.copy())
     return frames
 
@@ -342,17 +380,27 @@ def load_assets() -> Assets:
     """
     if not pygame.font.get_init():
         pygame.font.init()
+    manifest = _load_manifest()
+    frame_w = int(manifest.get("frame_width", SPRITE_W))
+    frame_h = int(manifest.get("frame_height", SPRITE_H))
+    sprite_scale = float(manifest.get("scale_recommendation", SPRITE_SCALE))
+    layout = manifest.get("layout", {})
+    count = int(layout.get("frames_per_sheet", FRAMES_PER_SHEET)) if isinstance(layout, dict) else FRAMES_PER_SHEET
     return Assets(
         sheets={
-            "home": _slice_sheet("home.png"),
-            "away": _slice_sheet("away.png"),
-            "goalkeeper": _slice_sheet("goalkeeper.png"),
+            "home": _slice_sheet("home.png", frame_w, frame_h, count),
+            "away": _slice_sheet("away.png", frame_w, frame_h, count),
+            "goalkeeper": _slice_sheet("goalkeeper.png", frame_w, frame_h, count),
         },
         ball=_load_image("ball.png"),
         ball_shadow=_load_image("ball_shadow.png"),
         hud_font=_load_font(16),
         banner_font=_load_font(11),
         small_font=_load_font(8),
+        score_font=_load_font(26),
+        frame_w=frame_w,
+        frame_h=frame_h,
+        sprite_scale=sprite_scale,
     )
 
 
@@ -369,7 +417,7 @@ def _pitch_quad() -> list[tuple[float, float]]:
 
 def _draw_stripes(surface: pygame.Surface) -> None:
     """Draw vertical mowing stripes that converge with the perspective."""
-    stripes = 10
+    stripes = 16
     for i in range(0, stripes, 2):
         x0 = -X_EXTENT + (2 * X_EXTENT) * i / stripes
         x1 = -X_EXTENT + (2 * X_EXTENT) * (i + 1) / stripes
@@ -412,27 +460,93 @@ def _draw_box(surface: pygame.Surface, sign: float) -> None:
     pygame.draw.polygon(surface, LINE_WHITE, corners, 2)
 
 
-def _draw_goal(surface: pygame.Surface, sign: float) -> None:
-    """Draw a simple 3D-ish goal frame at the goal line on side ``sign``."""
+_Pt = tuple[float, float]
+
+
+def _lerp_pt(a: _Pt, b: _Pt, s: float) -> _Pt:
+    """Linear-interpolate between two screen points."""
+    return (a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s)
+
+
+def _quad_mesh(
+    surface: pygame.Surface,
+    corners: tuple[_Pt, _Pt, _Pt, _Pt],
+    divisions: int,
+    colour: tuple[int, int, int],
+) -> None:
+    """Draw a perspective grid (net mesh) across a quad ``(tl, tr, br, bl)``.
+
+    Lines are bilinearly interpolated between the edges so the grid recedes
+    correctly under the projection, reading as a Goal!-style receding net.
+    """
+    tl, tr, br, bl = corners
+    for i in range(divisions + 1):
+        s = i / divisions
+        _proj_line_c(surface, _lerp_pt(tl, tr, s), _lerp_pt(bl, br, s), colour, 1)
+        _proj_line_c(surface, _lerp_pt(tl, bl, s), _lerp_pt(tr, br, s), colour, 1)
+
+
+def _proj_line_c(
+    surface: pygame.Surface, p0: _Pt, p1: _Pt, colour: tuple[int, int, int], width: int,
+) -> None:
+    """Draw a coloured line between two screen points."""
+    pygame.draw.line(surface, colour, p0, p1, width)
+
+
+def _draw_goal_net(surface: pygame.Surface, sign: float) -> None:
+    """Draw a perspective net goal at the goal line on side ``sign``.
+
+    Builds a 3D goal box (front mouth on the goal line, net receding outward
+    behind it) with white posts + crossbar and a cross-hatched net mesh on the
+    back panel, roof, and side panels -- line-drawn so it stays cheap at 30fps.
+    """
     goal_x = sign * X_EXTENT
-    back_top = project(goal_x, -0.07)
-    back_bot = project(goal_x, 0.07)
-    depth = 18 * (1 if sign > 0 else -1)
-    bt = (back_top[0], back_top[1])
-    bb = (back_bot[0], back_bot[1])
-    ft = (back_top[0] + depth, back_top[1] - 14)
-    fb = (back_bot[0] + depth, back_bot[1] - 14)
-    pygame.draw.polygon(surface, GOAL_WHITE, [bt, ft, fb, bb], 2)
-    pygame.draw.line(surface, GOAL_WHITE, bt, ft, 2)
-    pygame.draw.line(surface, GOAL_WHITE, bb, fb, 2)
+    goal_h = 0.09  # half the goal-mouth height in world-y
+    fl = project(goal_x, -goal_h)[:2]  # front feet (mouth), far-y side
+    fr = project(goal_x, goal_h)[:2]  # front feet, near-y side
+    depth = project(goal_x, 0.0)[2]
+    post_h = 78.0 * depth  # post height in px (up = smaller screen-y)
+    rv = (sign * 52.0 * depth, -20.0 * depth)  # recede vector into the goal
+
+    ftl = (fl[0], fl[1] - post_h)  # front-top-left
+    ftr = (fr[0], fr[1] - post_h)  # front-top-right
+    bl = (fl[0] + rv[0], fl[1] + rv[1])  # back feet
+    br = (fr[0] + rv[0], fr[1] + rv[1])
+    btl = (bl[0], bl[1] - post_h)  # back tops
+    btr = (br[0], br[1] - post_h)
+
+    # Net mesh panels (thin grey), drawn first so the frame sits crisply on top.
+    _quad_mesh(surface, (btl, btr, br, bl), 6, NET_GREY)  # back panel
+    _quad_mesh(surface, (ftl, ftr, btr, btl), 4, NET_GREY)  # roof
+    _quad_mesh(surface, (ftl, btl, bl, fl), 4, NET_GREY)  # far-y side panel
+    _quad_mesh(surface, (ftr, btr, br, fr), 4, NET_GREY)  # near-y side panel
+
+    # White frame: posts, crossbar, depth rails.
+    for a, b in (
+        (fl, ftl),
+        (fr, ftr),
+        (bl, btl),
+        (br, btr),  # posts
+        (ftl, ftr),
+        (btl, btr),  # crossbars
+        (ftl, btl),
+        (ftr, btr),  # roof rails
+        (fl, bl),
+        (fr, br),  # ground rails
+    ):
+        _proj_line_c(surface, a, b, GOAL_WHITE, 3)
 
 
 def draw_pitch(surface: pygame.Surface) -> None:
-    """Draw the tilted trapezoidal pitch and all perspective-correct markings."""
-    surface.fill(BG_DARK)
+    """Draw the skewed-parallelogram pitch and all perspective-correct markings.
+
+    The whole surface is flooded with pitch green first (no dark vignette) so the
+    sheared quad's corner wedges still read as field and the pitch fills the frame.
+    """
+    surface.fill(PITCH_GREEN)
     pygame.draw.polygon(surface, PITCH_GREEN, _pitch_quad())
     _draw_stripes(surface)
-    # Touchlines + goal lines (the trapezoid outline).
+    # Touchlines + goal lines (the parallelogram outline).
     pygame.draw.polygon(surface, LINE_WHITE, _pitch_quad(), 2)
     # Halfway line.
     _proj_line(surface, project(0.0, -Y_EXTENT)[:2], project(0.0, Y_EXTENT)[:2])
@@ -442,7 +556,7 @@ def draw_pitch(surface: pygame.Surface) -> None:
     pygame.draw.circle(surface, LINE_WHITE, (int(cx), int(cy)), 3)
     for sign in (-1.0, 1.0):
         _draw_box(surface, sign)
-        _draw_goal(surface, sign)
+        _draw_goal_net(surface, sign)
 
 
 # Backwards-compatible alias kept for any external callers / tests.
@@ -455,7 +569,7 @@ def _draw_boxes(surface: pygame.Surface) -> None:
     """Compatibility wrapper drawing both penalty boxes and goals."""
     for sign in (-1.0, 1.0):
         _draw_box(surface, sign)
-        _draw_goal(surface, sign)
+        _draw_goal_net(surface, sign)
 
 
 # --- Player / ball drawing ---------------------------------------------------
@@ -499,6 +613,9 @@ class _Sprite:
     sy: float
     depth: float
     glow: bool
+    frame_w: int
+    frame_h: int
+    base_scale: float
 
 
 def _resolve_sprite(
@@ -515,7 +632,18 @@ def _resolve_sprite(
     else:
         sheet = assets.sheets[player.team if player.team in assets.sheets else "home"]
     index, flip = _select_frame(player, prev, tick)
-    return _Sprite(sheet=sheet, index=index, flip=flip, sx=sx, sy=sy, depth=depth, glow=glow)
+    return _Sprite(
+        sheet=sheet,
+        index=index,
+        flip=flip,
+        sx=sx,
+        sy=sy,
+        depth=depth,
+        glow=glow,
+        frame_w=assets.frame_w,
+        frame_h=assets.frame_h,
+        base_scale=assets.sprite_scale,
+    )
 
 
 def _blit_sprite(surface: pygame.Surface, spr: _Sprite) -> None:
@@ -524,9 +652,9 @@ def _blit_sprite(surface: pygame.Surface, spr: _Sprite) -> None:
     frame = spr.sheet[spr.index]
     if spr.flip:
         frame = pygame.transform.flip(frame, True, False)
-    scale = SPRITE_SCALE * spr.depth
-    w = max(1, int(SPRITE_W * scale))
-    h = max(1, int(SPRITE_H * scale))
+    scale = spr.base_scale * spr.depth
+    w = max(1, int(spr.frame_w * scale))
+    h = max(1, int(spr.frame_h * scale))
     scaled = pygame.transform.scale(frame, (w, h))
     # Anchor the fixed 16x24 frame by bottom-centre so feet sit on the pitch.
     bx = int(spr.sx - w / 2)
@@ -573,22 +701,128 @@ def draw_ball(surface: pygame.Surface, frame: Frame, assets: Assets) -> None:
 
 
 # --- HUD / coach overlay -----------------------------------------------------
+def _draw_outlined_text(  # noqa: PLR0913 - a text primitive; font/text/pos/colours are irreducible
+    surface: pygame.Surface,
+    font: pygame.font.Font,
+    text: str,
+    center: tuple[int, int],
+    fill: tuple[int, int, int],
+    outline: tuple[int, int, int],
+) -> None:
+    """Blit ``text`` centred at ``center`` with a 1px outline (pixel-font look)."""
+    base = font.render(text, True, fill)
+    edge = font.render(text, True, outline)
+    rect = base.get_rect(center=center)
+    for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2), (-2, -2), (2, -2), (-2, 2), (2, 2)):
+        surface.blit(edge, rect.move(ox, oy))
+    surface.blit(base, rect)
+
+
+def _draw_control_hint(  # noqa: PLR0913 - a HUD glyph primitive; pos/label/arrow flags are irreducible
+    surface: pygame.Surface,
+    font: pygame.font.Font,
+    center: tuple[int, int],
+    label: str,
+    *,
+    left: bool,
+    right: bool,
+) -> None:
+    """Draw a Goal!-style ``◀ label ▶`` control hint (triangles drawn, not glyphs)."""
+    text = font.render(label, True, HUD_HINT_CYAN)
+    rect = text.get_rect(center=center)
+    surface.blit(text, rect)
+    cy = center[1]
+    if left:
+        x = rect.left - 12
+        pygame.draw.polygon(surface, HUD_HINT_CYAN, [(x, cy), (x + 8, cy - 6), (x + 8, cy + 6)])
+    if right:
+        x = rect.right + 12
+        pygame.draw.polygon(surface, HUD_HINT_CYAN, [(x, cy), (x - 8, cy - 6), (x - 8, cy + 6)])
+
+
+def _draw_team_block(  # noqa: PLR0913 - a HUD block primitive; code/score/colour/positions are irreducible
+    surface: pygame.Surface,
+    assets: Assets,
+    *,
+    code: str,
+    score: int,
+    colour: tuple[int, int, int],
+    code_xy: tuple[int, int],
+    score_xy: tuple[int, int],
+) -> None:
+    """Draw one team's code label + large outlined score digit."""
+    label = assets.small_font.render(code, True, TEXT_WHITE)
+    surface.blit(label, label.get_rect(center=code_xy))
+    _draw_outlined_text(surface, assets.score_font, f"{score:02d}", score_xy, colour, LINE_WHITE)
+
+
 def draw_hud(surface: pygame.Surface, frame: Frame, assets: Assets, speed: float) -> None:
-    """Draw the score/clock header and the current playback speed legend."""
-    minutes = int(frame.t // 60)
-    seconds = int(frame.t % 60)
-    score = f"{frame.score[0]}  -  {frame.score[1]}"
-    clock = f"{minutes:02d}:{seconds:02d}"
-    score_surf = assets.hud_font.render(score, True, TEXT_WHITE)
-    clock_surf = assets.hud_font.render(clock, True, TEXT_WHITE)
-    surface.blit(score_surf, score_surf.get_rect(center=(WIDTH // 2, 22)))
-    surface.blit(clock_surf, clock_surf.get_rect(center=(WIDTH // 2, 46)))
-    legend = assets.small_font.render(
-        f"{speed:g}x  SPACE pause  <- -> scrub  +/- speed  ESC quit",
-        True,
-        TEXT_WHITE,
+    """Draw the Goal!-style bottom score bar (codes, outlined score, clock, hints)."""
+    bar_y = HEIGHT - HUD_BOTTOM_H
+    pygame.draw.rect(surface, HUD_BAR_BG, pygame.Rect(0, bar_y, WIDTH, HUD_BOTTOM_H))
+    pygame.draw.line(surface, LINE_WHITE, (0, bar_y), (WIDTH, bar_y), 2)
+
+    mid_y = bar_y + HUD_BOTTOM_H // 2
+    _draw_team_block(
+        surface, assets, code="HOM", score=frame.score[0], colour=HOME_RED,
+        code_xy=(64, bar_y + 22), score_xy=(150, mid_y + 4),
     )
-    surface.blit(legend, (16, HEIGHT - 16))
+    _draw_team_block(
+        surface, assets, code="AWY", score=frame.score[1], colour=AWAY_BLUE,
+        code_xy=(WIDTH - 64, bar_y + 22), score_xy=(WIDTH - 150, mid_y + 4),
+    )
+
+    minutes, seconds = int(frame.t // 60), int(frame.t % 60)
+    _draw_outlined_text(
+        surface, assets.hud_font, f"{minutes:02d}:{seconds:02d}",
+        (WIDTH // 2, mid_y - 2), TEXT_WHITE, TEXT_DARK,
+    )
+    speed_surf = assets.small_font.render(f"{speed:g}x", True, TEXT_WHITE)
+    surface.blit(speed_surf, speed_surf.get_rect(center=(WIDTH // 2, mid_y + 22)))
+
+    _draw_control_hint(surface, assets.small_font, (300, bar_y + 18), "1 P", left=True, right=True)
+    _draw_control_hint(surface, assets.small_font, (WIDTH - 300, bar_y + 18), "COM", left=False, right=True)
+
+
+# --- Active-player marker ----------------------------------------------------
+def _active_player(frame: Frame, glow_ids: set[int]) -> Player | None:
+    """Return the selected player: last-overridden if any, else nearest the ball.
+
+    The override case reuses ``glow_ids`` (the players the coach wrote an override
+    for this frame) so the white marker and the yellow alert box agree on who is
+    highlighted; otherwise the ball-carrier (nearest to the ball) is marked.
+    """
+    if not frame.players:
+        return None
+    if glow_ids:
+        for p in frame.players:
+            if p.id in glow_ids:
+                return p
+    return min(
+        frame.players,
+        key=lambda p: (p.x - frame.ball_x) ** 2 + (p.y - frame.ball_y) ** 2,
+    )
+
+
+def draw_active_marker(surface: pygame.Surface, player: Player | None, assets: Assets) -> None:
+    """Draw Goal!'s white selected-player indicator under ``player``.
+
+    A white ground arc plus a small ``①`` badge above the head -- deliberately
+    white (and a different shape) so it never reads as the coach's yellow box.
+    """
+    if player is None:
+        return
+    sx, sy, depth = project(player.x, player.y)
+    rw = max(10, int(28 * depth))
+    rh = max(5, int(12 * depth))
+    arc_rect = pygame.Rect(int(sx - rw / 2), int(sy - rh / 2), rw, rh)
+    pygame.draw.arc(surface, MARKER_WHITE, arc_rect, math.pi, 2 * math.pi, 3)
+    head_y = int(sy - assets.frame_h * assets.sprite_scale * depth - 8)
+    radius = max(6, int(9 * depth))
+    pygame.draw.circle(surface, MARKER_WHITE, (int(sx), head_y), radius)
+    pygame.draw.circle(surface, TEXT_DARK, (int(sx), head_y), radius, 1)
+    one = assets.small_font.render("1", True, TEXT_DARK)
+    surface.blit(one, one.get_rect(center=(int(sx), head_y)))
 
 
 def draw_coach_overlay(
@@ -668,6 +902,7 @@ def render_frame(
     draw_pitch(surface)
     draw_players(surface, ctx)
     draw_ball(surface, frame, assets)
+    draw_active_marker(surface, _active_player(frame, glow_ids), assets)
     draw_hud(surface, frame, assets, speed)
     if frame.coach_cycles:
         draw_coach_overlay(surface, frame, frame.coach_cycles, assets)
@@ -747,12 +982,12 @@ def _render_live(surface: pygame.Surface, frames: list[Frame], state: _Playback,
     """Render the current playback frame with a live (timed) coach banner."""
     frame = frames[state.index]
     prev = frames[state.index - 1] if state.index > 0 else None
-    ctx = _AnimContext(
-        frame=frame, prev=prev, tick=frame.tick, assets=assets, glow_ids=_glow_ids(state, frame),
-    )
+    glow_ids = _glow_ids(state, frame)
+    ctx = _AnimContext(frame=frame, prev=prev, tick=frame.tick, assets=assets, glow_ids=glow_ids)
     draw_pitch(surface)
     draw_players(surface, ctx)
     draw_ball(surface, frame, assets)
+    draw_active_marker(surface, _active_player(frame, glow_ids), assets)
     draw_hud(surface, frame, assets, SPEEDS[state.speed_idx])
     cycles = _coach_cycles_for(state, frame)
     if cycles:

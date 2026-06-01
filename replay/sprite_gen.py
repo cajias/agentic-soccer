@@ -1,26 +1,33 @@
-"""SNES-style footballer sprite-sheet generator for agentic-soccer replays.
+"""Jaleco "Goal!"-style footballer sprite-sheet generator for agentic-soccer.
 
-Draws pixel-art footballer sprites procedurally with pygame (no external art),
-in the spirit of International Superstar Soccer / Super Soccer: bold shapes, a
-limited palette, 1px dark outlines, and crisp pixels (no anti-aliasing).
+Draws chunky pixel-art footballer sprites procedurally with pygame (no external
+art), in the spirit of Jaleco's *Goal!* (Super Famicom): stocky bodies, boldly
+**shaded** kits (a lit highlight tone, the base team colour, and a shadow tone,
+lit from the upper-left), defined shorts + socks + boots, short hair over a skin
+head, 1px dark outlines and crisp pixels (no anti-aliasing).
 
 Outputs (to ``replay/assets/sprites/``):
 
 * ``home.png`` / ``away.png`` / ``goalkeeper.png`` -- one sprite *sheet* per kit,
   a single row of 5 frames laid out as ``[idle, run0, run1, run2, run3]``.
-  Frame size is 16w x 24h. Sheet size is 80w x 24h.
-* ``ball.png`` -- 8x8 white ball with a couple of black pentagon hints.
-* ``ball_shadow.png`` -- 8x4 soft dark shadow blob.
+  Frame size is 24w x 32h. Sheet size is 120w x 32h.
+* ``ball.png`` -- 10x10 white ball with black pentagon hints and shading.
+* ``ball_shadow.png`` -- 10x5 soft dark elliptical shadow blob (for the ball).
 * ``manifest.json`` -- the authoritative description of frame size, layout,
   per-kit files, facing convention and the recommended scale factor.
 * ``_preview.png`` -- all kits + all frames + ball, scaled up 6x with
   nearest-neighbour on a checkerboard background, for human eyeballing.
 
-Sprites face RIGHT. The renderer should horizontally flip them for left-facing
-movement (``pygame.transform.flip(surf, True, False)``).
+Sprites face RIGHT. The renderer flips them for left-facing movement
+(``pygame.transform.flip(surf, True, False)``).
 
-All surfaces are ``SRCALPHA`` (transparent background) so the renderer can blit
-them straight onto the green pitch.
+The renderer draws each player's elliptical **ground shadow** itself (see
+``replay/visualizer.py::_shadow_ellipse``); sprites therefore carry NO baked
+body shadow and keep a fully transparent background. ``ball_shadow.png`` is the
+one exception -- it is the ball's drop shadow, blit under the ball by the
+renderer.
+
+All surfaces are ``SRCALPHA`` (transparent background).
 
 Deterministic: no randomness; every pixel is drawn from fixed tables.
 
@@ -45,49 +52,60 @@ import pygame
 
 
 # --- Geometry ----------------------------------------------------------------
-FRAME_W = 16
-FRAME_H = 24
+FRAME_W = 24
+FRAME_H = 32
 RUN_FRAMES = 4
 FRAMES_PER_SHEET = 1 + RUN_FRAMES  # idle + run cycle
 SHEET_W = FRAME_W * FRAMES_PER_SHEET
 SHEET_H = FRAME_H
-SCALE = 4  # recommended nearest-neighbour scale for the replayer
+SCALE = 3  # recommended nearest-neighbour scale (24x32 is ~1.5x the old 16x24)
 
 # --- Palette (RGB) -----------------------------------------------------------
 TRANSPARENT = (0, 0, 0, 0)
-OUTLINE = (24, 18, 28)        # near-black, used for all 1px outlines
-SKIN = (240, 190, 150)
-SKIN_SHADE = (205, 150, 115)
-HAIR = (70, 45, 30)
-BOOT = (30, 30, 36)
-SOCK = (245, 245, 245)
-SOCK_SHADE = (205, 205, 210)
+OUTLINE = (20, 16, 24)        # near-black, used for all 1px outlines
+SKIN = (242, 194, 152)
+SKIN_HI = (255, 218, 180)
+SKIN_SHADE = (202, 150, 112)
+HAIR = (66, 42, 28)
+HAIR_HI = (104, 70, 46)
+BOOT = (28, 26, 32)
+BOOT_HI = (66, 64, 74)
 
-# Per-kit colours: shirt, shirt-shade, shorts, sock, patch (number/stripe accent)
-KITS = {
-    "home": {
-        "shirt": (210, 50, 45),
-        "shirt_shade": (165, 35, 32),
-        "shorts": (245, 245, 245),
-        "shorts_shade": (205, 205, 210),
-        "sock": (210, 50, 45),
-        "patch": (245, 245, 245),
+# Per-kit colours. Each kit gives a 3-tone shirt (highlight / base / shadow),
+# a 2-tone shorts, a 2-tone sock and an accent patch (number/trim).
+KITS: dict[str, dict[str, Any]] = {
+    "home": {  # red shirt, white shorts
+        "shirt_hi": (236, 96, 84),
+        "shirt": (208, 48, 42),
+        "shirt_shade": (150, 28, 26),
+        "shorts_hi": (255, 255, 255),
+        "shorts": (232, 232, 238),
+        "shorts_shade": (186, 186, 198),
+        "sock": (224, 224, 230),
+        "sock_shade": (176, 176, 188),
+        "patch": (250, 250, 250),
     },
-    "away": {
-        "shirt": (45, 75, 200),
-        "shirt_shade": (32, 55, 155),
-        "shorts": (30, 30, 36),
-        "shorts_shade": (18, 18, 24),
-        "sock": (45, 75, 200),
-        "patch": (245, 245, 90),
+    "away": {  # blue shirt, dark shorts
+        "shirt_hi": (96, 138, 238),
+        "shirt": (46, 86, 206),
+        "shirt_shade": (28, 52, 150),
+        "shorts_hi": (58, 64, 82),
+        "shorts": (36, 40, 54),
+        "shorts_shade": (20, 22, 32),
+        "sock": (46, 86, 206),
+        "sock_shade": (28, 52, 150),
+        "patch": (248, 224, 92),
     },
-    "goalkeeper": {
-        "shirt": (70, 210, 90),
-        "shirt_shade": (45, 165, 70),
-        "shorts": (35, 35, 40),
-        "shorts_shade": (22, 22, 28),
-        "sock": (70, 210, 90),
-        "patch": (25, 25, 30),
+    "goalkeeper": {  # teal/green shirt, dark shorts
+        "shirt_hi": (92, 226, 188),
+        "shirt": (42, 192, 150),
+        "shirt_shade": (24, 138, 106),
+        "shorts_hi": (54, 60, 70),
+        "shorts": (32, 36, 44),
+        "shorts_shade": (18, 20, 26),
+        "sock": (42, 192, 150),
+        "sock_shade": (24, 138, 106),
+        "patch": (24, 26, 32),
     },
 }
 
@@ -100,7 +118,7 @@ def _px(surf: pygame.Surface, x: int, y: int, color: tuple[int, int, int]) -> No
         surf.set_at((x, y), color)
 
 
-def _rect(  # noqa: PLR0913 - a pixel-rect primitive; the x/y/w/h/color args are irreducible
+def _rect(  # noqa: PLR0913 - a pixel-rect primitive; x/y/w/h/color are irreducible
     surf: pygame.Surface,
     x: int,
     y: int,
@@ -114,12 +132,37 @@ def _rect(  # noqa: PLR0913 - a pixel-rect primitive; the x/y/w/h/color args are
             _px(surf, xx, yy, color)
 
 
+def _shaded_block(  # noqa: PLR0913 - a beveled-rect primitive; tones+geometry irreducible
+    surf: pygame.Surface,
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    base: tuple[int, int, int],
+    hi: tuple[int, int, int],
+    shade: tuple[int, int, int],
+) -> None:
+    """Fill a rectangle with 3-tone bevel shading, lit from the upper-left.
+
+    The block is filled with ``base``; the top row and left column get the
+    ``hi`` highlight tone, and the bottom row and right column get the ``shade``
+    shadow tone. The result reads as a rounded, lit volume rather than flat fill.
+    """
+    _rect(surf, x, y, w, h, base)
+    # Highlight: top edge + left edge.
+    _rect(surf, x, y, w, 1, hi)
+    _rect(surf, x, y, 1, h, hi)
+    # Shadow: bottom edge + right edge.
+    _rect(surf, x, y + h - 1, w, 1, shade)
+    _rect(surf, x + w - 1, y, 1, h, shade)
+
+
 def _outline_silhouette(surf: pygame.Surface) -> None:
     """Add a 1px dark outline around every opaque blob.
 
     For each transparent pixel orthogonally adjacent to an opaque one, paint the
-    dark OUTLINE colour. Done as a post-pass so we never have to hand-place the
-    outline of every limb. Deterministic.
+    dark OUTLINE colour. Done as a post-pass so we never hand-place limb
+    outlines. Deterministic.
     """
     w, h = surf.get_width(), surf.get_height()
     to_paint: list[tuple[int, int]] = []
@@ -137,189 +180,222 @@ def _outline_silhouette(surf: pygame.Surface) -> None:
 
 
 # --- Footballer drawing ------------------------------------------------------
-# Body is drawn facing RIGHT, centred horizontally in the 16-wide frame.
-# Vertical bands (base, before per-frame bob):
-#   y 2-7   head + hair
-#   y 8-15  torso (shirt)
-#   y 16-19 shorts
-#   y 20-22 socks/legs
-#   y 22-23 boots
-#
-# A "pose" describes the two legs and two arms for a frame.
+# Body drawn facing RIGHT, centred horizontally in the 24-wide frame.
+# Vertical bands (base, before per-frame bob), in a 24x32 frame:
+#   y 3-9    head + hair (7 tall)
+#   y 10-19  torso / shirt (10 tall)
+#   y 20-24  shorts (5 tall)
+#   y 25-29  socks / legs
+#   y 29-31  boots
+# A "pose" describes the two legs (and arm swing) for a frame.
+
+CX = 12  # nominal centre column
 
 
-def _draw_player_frame(kit: dict[str, Any], pose: str, bob: int) -> pygame.Surface:  # noqa: C901, PLR0915 - procedural sprite art: one statement per body part, kept inline for clarity
-    """Draw one 16x24 footballer frame onto a transparent surface.
+def _draw_head(s: pygame.Surface, top: int) -> None:
+    """Draw the skin head + short hair cap + a single eye, facing right."""
+    hx = CX - 3
+    # Skin head, 6 wide x 6 tall.
+    _shaded_block(s, hx, top, 6, 6, SKIN, SKIN_HI, SKIN_SHADE)
+    # Hair cap over top + back (left) of the head.
+    _rect(s, hx, top, 6, 2, HAIR)
+    _rect(s, hx, top, 1, 4, HAIR)
+    _px(s, hx, top, HAIR_HI)
+    _px(s, hx + 1, top, HAIR_HI)
+    # Ear hint on the back of the head.
+    _px(s, hx, top + 3, SKIN_SHADE)
+    # Eye (facing right).
+    _px(s, hx + 4, top + 3, OUTLINE)
+    # Jaw / chin shade.
+    _px(s, hx + 1, top + 5, SKIN_SHADE)
 
-    ``pose`` is one of: ``idle``, ``contactA``, ``passA``, ``contactB``, ``passB``.
-    ``bob`` shifts the head+torso vertically by 1px on the 'passing' frames to
-    sell the run cycle's body bob.
+
+def _draw_torso(s: pygame.Surface, kit: dict[str, Any], ty: int) -> None:
+    """Draw the shaded shirt with a chest accent patch and a neck."""
+    # Neck.
+    _rect(s, CX - 1, ty - 1, 3, 1, SKIN_SHADE)
+    # Shirt block, 10 wide x 10 tall.
+    sx = CX - 5
+    _shaded_block(s, sx, ty, 10, 10, kit["shirt"], kit["shirt_hi"], kit["shirt_shade"])
+    # Extra shadow wedge under the right arm / lower-right torso.
+    _rect(s, sx + 7, ty + 6, 2, 3, kit["shirt_shade"])
+    # Chest accent patch (number/trim), 3 wide x 4 tall, slightly right-of-centre.
+    _rect(s, CX, ty + 3, 3, 4, kit["patch"])
+    _px(s, CX, ty + 3, kit["shirt_shade"])  # keep patch reading as on the shirt
+
+
+def _draw_arm(s: pygame.Surface, kit: dict[str, Any], ty: int, forward: bool) -> None:
+    """Draw the swinging near arm: forward (+x) or trailing back (-x)."""
+    if forward:
+        ax = CX + 5
+        _shaded_block(s, ax, ty + 1, 2, 6, kit["shirt"], kit["shirt_hi"], kit["shirt_shade"])
+        _rect(s, ax, ty + 7, 2, 2, SKIN)  # forearm/hand
+        _px(s, ax + 1, ty + 8, SKIN_SHADE)
+    else:
+        ax = CX - 6
+        _shaded_block(s, ax, ty + 1, 2, 6, kit["shirt"], kit["shirt_hi"], kit["shirt_shade"])
+        _rect(s, ax, ty + 7, 2, 2, SKIN)  # forearm/hand
+        _px(s, ax, ty + 8, SKIN_SHADE)
+
+
+def _draw_leg(  # noqa: PLR0913 - a leg primitive; geometry + tones are irreducible
+    s: pygame.Surface,
+    kit: dict[str, Any],
+    leg_x: int,
+    leg_top: int,
+    length: int,
+    foot_dx: int,
+    lead: bool,
+) -> None:
+    """Draw one leg: a thigh (shorts skin), a 2-tone sock and a boot.
+
+    ``leg_x`` is the left column of the 2px-wide leg. ``foot_dx`` shifts the
+    boot horizontally for stride. ``lead`` (front leg) uses the bright sock tone;
+    the trailing leg uses the shaded sock tone so the legs read as alternating.
     """
+    sock = kit["sock"] if lead else kit["sock_shade"]
+    sock_sh = kit["sock_shade"]
+    # Bare thigh just below the shorts (a touch of skin).
+    _rect(s, leg_x, leg_top, 2, 1, SKIN_SHADE)
+    # Sock column.
+    for i in range(1, length):
+        _rect(s, leg_x, leg_top + i, 2, 1, sock)
+    _px(s, leg_x + 1, leg_top + length - 1, sock_sh)  # right-edge sock shade
+    # Boot: 3px wide pointing in the stride direction, 2 tall.
+    boot_y = leg_top + length
+    bx = leg_x + min(0, foot_dx)
+    bw = 3 + abs(foot_dx)
+    _rect(s, bx, boot_y, bw, 2, BOOT)
+    _rect(s, bx, boot_y, bw, 1, BOOT_HI)  # top sheen on the boot
+
+
+# Each pose: (front_leg, back_leg, arm_forward, bob)
+# leg tuple = (x, length, foot_dx, lead)
+POSES: dict[str, dict[str, Any]] = {
+    "idle": {
+        "front": (CX + 1, 4, 0, True),
+        "back": (CX - 3, 4, 0, False),
+        "arm_forward": False,
+        "bob": 0,
+    },
+    "run0": {  # right leg drives forward, left leg extends behind (ground contact)
+        "front": (CX + 2, 3, 2, True),
+        "back": (CX - 4, 4, -2, False),
+        "arm_forward": True,
+        "bob": 0,
+    },
+    "run1": {  # passing under the body, bob up
+        "front": (CX, 5, 0, True),
+        "back": (CX + 1, 4, 0, False),
+        "arm_forward": False,
+        "bob": -1,
+    },
+    "run2": {  # left leg drives forward, right leg extends behind (mirror stride)
+        "front": (CX + 1, 4, 2, False),
+        "back": (CX - 4, 3, -2, True),
+        "arm_forward": False,
+        "bob": 0,
+    },
+    "run3": {  # passing under the body again, bob up
+        "front": (CX - 1, 5, 0, True),
+        "back": (CX, 4, 0, False),
+        "arm_forward": True,
+        "bob": -1,
+    },
+}
+
+POSE_SEQUENCE = ["idle", "run0", "run1", "run2", "run3"]
+
+
+def _draw_player_frame(kit: dict[str, Any], pose_name: str) -> pygame.Surface:
+    """Draw one 24x32 footballer frame onto a transparent surface."""
     s = pygame.Surface((FRAME_W, FRAME_H), pygame.SRCALPHA)
     s.fill(TRANSPARENT)
+    pose = POSES[pose_name]
+    bob = pose["bob"]
 
-    cx = 8  # nominal centre column
-    shirt = kit["shirt"]
-    shirt_shade = kit["shirt_shade"]
-    shorts = kit["shorts"]
-    shorts_shade = kit["shorts_shade"]
-    sock = kit["sock"]
-    patch = kit["patch"]
+    head_top = 3 + bob
+    torso_top = head_top + 7      # y~10
+    shorts_top = torso_top + 10   # y~20
+    legs_top = shorts_top + 5     # y~25
 
-    top = 2 + bob  # head top
+    # Back leg first (behind the body), then torso, then front leg on top.
+    bx, blen, bdx, blead = pose["back"]
+    _draw_leg(s, kit, bx, legs_top, blen, bdx, blead)
 
-    # --- Head (skin) 4 wide ---
-    _rect(s, cx - 2, top, 5, 5, SKIN)
-    # face shading on the back (left) edge
-    _rect(s, cx - 2, top + 1, 1, 3, SKIN_SHADE)
-    # --- Hair: cap over the top + back of the head ---
-    _rect(s, cx - 2, top, 5, 2, HAIR)
-    _rect(s, cx - 2, top + 1, 1, 1, HAIR)  # sideburn back
-    # eye (facing right) -- single dark pixel
-    _px(s, cx + 2, top + 3, OUTLINE)
+    # Shorts block, 12 wide x 5 tall.
+    _shaded_block(
+        s, CX - 6, shorts_top, 12, 5,
+        kit["shorts"], kit["shorts_hi"], kit["shorts_shade"],
+    )
 
-    # --- Torso / shirt ---
-    ty = top + 5  # shirt top (y~7+bob)
-    _rect(s, cx - 3, ty, 7, 7, shirt)
-    # shirt shading down the left side
-    _rect(s, cx - 3, ty, 1, 7, shirt_shade)
-    # number / accent patch: a 2x2 block centred on the chest
-    _rect(s, cx, ty + 2, 2, 3, patch)
+    _draw_torso(s, kit, torso_top)
+    _draw_head(s, head_top)
+    _draw_arm(s, kit, torso_top, pose["arm_forward"])
 
-    # --- Arms (swing opposite to legs) ---
-    # Arm forward = drawn toward +x (right), arm back = toward -x (left).
-    def arm(side_forward: bool) -> None:
-        if side_forward:
-            # front arm reaching forward/down on the right
-            _rect(s, cx + 4, ty + 1, 1, 4, SKIN)
-            _px(s, cx + 4, ty + 5, SKIN_SHADE)
-        else:
-            # back arm trailing on the left
-            _rect(s, cx - 4, ty + 1, 1, 4, SKIN)
-            _px(s, cx - 4, ty + 5, SKIN_SHADE)
-
-    # --- Shorts ---
-    sy = ty + 7  # shorts top (y~14+bob)
-    _rect(s, cx - 3, sy, 7, 3, shorts)
-    _rect(s, cx - 3, sy, 1, 3, shorts_shade)
-
-    # --- Legs + socks + boots, per pose ---
-    # leg_x are column positions of the two legs at the hip line.
-    ly = sy + 3  # legs top (y~17+bob)
-
-    def leg(x: int, length: int, foot_dx: int, lead: bool) -> None:
-        """Draw a leg: sock column of given length, then a boot offset foot.
-
-        ``foot_dx`` shifts the boot horizontally (stride). ``lead`` tints the
-        sock the kit sock colour (front leg) vs a shaded sock (back leg).
-        """
-        col = sock if lead else SOCK_SHADE
-        for i in range(length):
-            _px(s, x, ly + i, col)
-        # thigh joins to shorts (skin just below shorts hidden by sock here)
-        boot_y = ly + length
-        # boot: 2px wide pointing forward (+x)
-        _rect(s, x + min(0, foot_dx), boot_y, 2 + abs(foot_dx), 1, BOOT)
-        if boot_y + 1 < FRAME_H:
-            _px(s, x + foot_dx, boot_y, BOOT)
-
-    if pose == "idle":
-        arm(False)
-        # both legs together, slight stand
-        leg(cx - 1, 4, 0, True)
-        leg(cx + 1, 4, 0, False)
-    elif pose == "contactA":
-        # right leg forward (lead), left leg back -- ground contact
-        arm(True)
-        leg(cx + 2, 3, 1, True)   # front leg forward + boot reaching right
-        leg(cx - 2, 4, -1, False)  # back leg extended behind
-    elif pose == "passA":
-        # legs passing under body (mid-stride), bob up
-        arm(False)
-        leg(cx, 4, 0, True)
-        leg(cx + 1, 3, 0, False)
-    elif pose == "contactB":
-        # left leg forward, right leg back (mirror of contactA stride)
-        arm(False)
-        leg(cx + 1, 4, 1, False)
-        leg(cx - 2, 3, -1, True)
-    elif pose == "passB":
-        arm(True)
-        leg(cx - 1, 4, 0, True)
-        leg(cx, 3, 0, False)
+    fx, flen, fdx, flead = pose["front"]
+    _draw_leg(s, kit, fx, legs_top, flen, fdx, flead)
 
     _outline_silhouette(s)
     return s
 
 
-POSE_SEQUENCE = ["idle", "contactA", "passA", "contactB", "passB"]
-POSE_BOB = {"idle": 0, "contactA": 0, "passA": 1, "contactB": 0, "passB": 1}
-
-
 def build_kit_sheet(kit_name: str) -> pygame.Surface:
-    """Build the 80x24 sprite sheet for one kit (idle + 4 run frames)."""
+    """Build the 120x32 sprite sheet for one kit (idle + 4 run frames)."""
     kit = KITS[kit_name]
     sheet = pygame.Surface((SHEET_W, SHEET_H), pygame.SRCALPHA)
     sheet.fill(TRANSPARENT)
     for idx, pose in enumerate(POSE_SEQUENCE):
-        frame = _draw_player_frame(kit, pose, POSE_BOB[pose])
+        frame = _draw_player_frame(kit, pose)
         sheet.blit(frame, (idx * FRAME_W, 0))
     return sheet
 
 
 def build_ball() -> pygame.Surface:
-    """8x8 white ball with black pentagon hints and a 1px outline."""
-    s = pygame.Surface((8, 8), pygame.SRCALPHA)
+    """10x10 white ball with black pentagon hints and a 1px outline."""
+    s = pygame.Surface((10, 10), pygame.SRCALPHA)
     s.fill(TRANSPARENT)
     white = (250, 250, 250)
-    shade = (200, 205, 215)
-    # round-ish body
-    body = [
-        (2, 1), (3, 1), (4, 1), (5, 1),
-        (1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2),
-        (1, 3), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3),
-        (1, 4), (2, 4), (3, 4), (4, 4), (5, 4), (6, 4),
-        (1, 5), (2, 5), (3, 5), (4, 5), (5, 5), (6, 5),
-        (2, 6), (3, 6), (4, 6), (5, 6),
-    ]
-    for x, y in body:
-        _px(s, x, y, white)
-    # bottom-right shading
-    for x, y in ((5, 5), (6, 4), (4, 6), (5, 6)):
+    shade = (198, 204, 214)
+    # Round body (rows of x-spans).
+    rows = {
+        1: (3, 6), 2: (2, 7), 3: (1, 8), 4: (1, 8),
+        5: (1, 8), 6: (1, 8), 7: (2, 7), 8: (3, 6),
+    }
+    for y, (x0, x1) in rows.items():
+        for x in range(x0, x1 + 1):
+            _px(s, x, y, white)
+    # Bottom-right shading crescent.
+    for x, y in ((7, 5), (8, 4), (8, 5), (6, 6), (7, 6), (5, 7), (6, 7)):
         _px(s, x, y, shade)
-    # black pentagon hints
-    for x, y in ((3, 3), (4, 3), (3, 4)):
+    # Black pentagon hints.
+    for x, y in ((4, 4), (5, 4), (4, 5), (5, 5)):
         _px(s, x, y, OUTLINE)
-    _px(s, 5, 2, OUTLINE)
-    _px(s, 2, 5, OUTLINE)
+    _px(s, 6, 2, OUTLINE)
+    _px(s, 2, 6, OUTLINE)
+    _px(s, 7, 7, OUTLINE)
     _outline_silhouette(s)
     return s
 
 
 def build_ball_shadow() -> pygame.Surface:
-    """8x4 soft dark elliptical shadow blob (semi-transparent)."""
-    s = pygame.Surface((8, 4), pygame.SRCALPHA)
+    """10x5 soft dark elliptical shadow blob (semi-transparent)."""
+    s = pygame.Surface((10, 5), pygame.SRCALPHA)
     s.fill(TRANSPARENT)
-    dark = (0, 0, 0, 90)
-    darker = (0, 0, 0, 130)
-    rows = [
-        (2, 5),  # y0: x2..x5
-        (1, 6),  # y1
-        (1, 6),  # y2
-        (2, 5),  # y3
-    ]
-    for y, (x0, x1) in enumerate(rows):
+    dark = (0, 0, 0, 80)
+    darker = (0, 0, 0, 120)
+    rows = {0: (3, 6), 1: (1, 8), 2: (1, 8), 3: (1, 8), 4: (3, 6)}
+    for y, (x0, x1) in rows.items():
         for x in range(x0, x1 + 1):
             s.set_at((x, y), dark)
-    for x in range(2, 6):
-        s.set_at((x, 1), darker)
+    for x in range(2, 8):
         s.set_at((x, 2), darker)
     return s
 
 
 def _checkerboard(w: int, h: int, cell: int = 6) -> pygame.Surface:
-    a = (60, 64, 72)
-    b = (96, 100, 110)
+    a = (58, 102, 64)   # pitch-ish greens so the kits read in context
+    b = (70, 120, 76)
     s = pygame.Surface((w, h))
     for y in range(0, h, cell):
         for x in range(0, w, cell):
@@ -328,11 +404,14 @@ def _checkerboard(w: int, h: int, cell: int = 6) -> pygame.Surface:
     return s
 
 
-def build_preview(sheets: dict[str, pygame.Surface], ball: pygame.Surface,
-                  shadow: pygame.Surface, scale: int = 6) -> pygame.Surface:
+def build_preview(
+    sheets: dict[str, pygame.Surface],
+    ball: pygame.Surface,
+    shadow: pygame.Surface,
+    scale: int = 6,
+) -> pygame.Surface:
     """Lay out all kit sheets + ball, scaled up nearest-neighbour."""
     pad = 8
-    label_h = 0
     row_h = SHEET_H * scale + pad
     rows = len(KIT_ORDER) + 1  # kits + ball row
     pw = SHEET_W * scale + pad * 2
@@ -343,12 +422,13 @@ def build_preview(sheets: dict[str, pygame.Surface], ball: pygame.Surface,
         big = pygame.transform.scale(sheets[name], (SHEET_W * scale, SHEET_H * scale))
         bg.blit(big, (pad, y))
         y += row_h
-    # ball row: ball + shadow scaled up
-    bball = pygame.transform.scale(ball, (8 * scale, 8 * scale))
-    bshadow = pygame.transform.scale(shadow, (8 * scale, 4 * scale))
-    bg.blit(bshadow, (pad, y + 8 * scale + 4))
+    # Ball row: shadow under the ball, both scaled up.
+    bw, bh = ball.get_size()
+    sw, sh = shadow.get_size()
+    bball = pygame.transform.scale(ball, (bw * scale, bh * scale))
+    bshadow = pygame.transform.scale(shadow, (sw * scale, sh * scale))
+    bg.blit(bshadow, (pad, y + bh * scale))
     bg.blit(bball, (pad, y))
-    _ = label_h
     return bg
 
 
@@ -380,7 +460,7 @@ def main() -> None:
     pygame.image.save(preview, str(out_dir / "_preview.png"))
 
     manifest = {
-        "description": "SNES-style footballer sprites for agentic-soccer replays.",
+        "description": "Jaleco 'Goal!'-style footballer sprites for agentic-soccer replays.",
         "frame_width": FRAME_W,
         "frame_height": FRAME_H,
         "facing": "sprites face right; flip horizontally for left "
@@ -388,6 +468,8 @@ def main() -> None:
         "scale_recommendation": SCALE,
         "outline_color": list(OUTLINE),
         "transparent_background": True,
+        "ground_shadow": "drawn by the renderer (visualizer.py::_shadow_ellipse); "
+                         "sprites carry no baked body shadow",
         "states": {
             "idle": {"frames": 1, "frame_indices": [0]},
             "run": {"frames": RUN_FRAMES, "frame_indices": [1, 2, 3, 4],
@@ -403,12 +485,14 @@ def main() -> None:
         },
         "kits": {
             "home": {"file": "home.png", "shirt": "red", "shorts": "white"},
-            "away": {"file": "away.png", "shirt": "blue", "shorts": "black"},
-            "goalkeeper": {"file": "goalkeeper.png", "shirt": "green",
-                           "shorts": "black"},
+            "away": {"file": "away.png", "shirt": "blue", "shorts": "dark"},
+            "goalkeeper": {"file": "goalkeeper.png", "shirt": "teal",
+                           "shorts": "dark"},
         },
-        "ball": {"file": "ball.png", "width": 8, "height": 8},
-        "ball_shadow": {"file": "ball_shadow.png", "width": 8, "height": 4,
+        "ball": {"file": "ball.png", "width": ball.get_width(),
+                 "height": ball.get_height()},
+        "ball_shadow": {"file": "ball_shadow.png", "width": shadow.get_width(),
+                        "height": shadow.get_height(),
                         "note": "semi-transparent; blit under the ball"},
         "preview": "_preview.png",
     }

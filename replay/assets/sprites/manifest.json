@@ -1,15 +1,16 @@
 {
-  "description": "SNES-style footballer sprites for agentic-soccer replays.",
-  "frame_width": 16,
-  "frame_height": 24,
+  "description": "Jaleco 'Goal!'-style footballer sprites for agentic-soccer replays.",
+  "frame_width": 24,
+  "frame_height": 32,
   "facing": "sprites face right; flip horizontally for left (pygame.transform.flip(surf, True, False))",
-  "scale_recommendation": 4,
+  "scale_recommendation": 3,
   "outline_color": [
-    24,
-    18,
-    28
+    20,
+    16,
+    24
   ],
   "transparent_background": true,
+  "ground_shadow": "drawn by the renderer (visualizer.py::_shadow_ellipse); sprites carry no baked body shadow",
   "states": {
     "idle": {
       "frames": 1,
@@ -38,8 +39,8 @@
       "run2",
       "run3"
     ],
-    "sheet_width": 80,
-    "sheet_height": 24,
+    "sheet_width": 120,
+    "sheet_height": 32,
     "frame_x_for_index": "x = index * frame_width; y = 0"
   },
   "kits": {
@@ -51,23 +52,23 @@
     "away": {
       "file": "away.png",
       "shirt": "blue",
-      "shorts": "black"
+      "shorts": "dark"
     },
     "goalkeeper": {
       "file": "goalkeeper.png",
-      "shirt": "green",
-      "shorts": "black"
+      "shirt": "teal",
+      "shorts": "dark"
     }
   },
   "ball": {
     "file": "ball.png",
-    "width": 8,
-    "height": 8
+    "width": 10,
+    "height": 10
   },
   "ball_shadow": {
     "file": "ball_shadow.png",
-    "width": 8,
-    "height": 4,
+    "width": 10,
+    "height": 5,
     "note": "semi-transparent; blit under the ball"
   },
   "preview": "_preview.png"
