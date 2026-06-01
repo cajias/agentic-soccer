@@ -84,7 +84,7 @@ class GameState:
     # -- overrides ----------------------------------------------------------
 
     def set_override(
-        self, team: str, player_id: str, override: dict[str, Any]
+        self, team: str, player_id: str, override: dict[str, Any],
     ) -> OverrideRecord:
         """Store a behavior override for a player, stamped with the current tick.
 
