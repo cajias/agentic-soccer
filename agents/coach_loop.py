@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from agents.personalities import (
     COACH_PERSONALITIES,
@@ -111,13 +111,13 @@ def _behavior_band(behavior: str) -> int | None:
     return None
 
 
-def heuristic_alerts(team: str, status: str) -> list[dict]:
+def heuristic_alerts(team: str, status: str) -> list[dict[str, Any]]:
     """Cheap fallback: flag the most out-of-position players from narrator text.
 
     Returns ``[{player_id, situation, reasoning}]`` (≤ :data:`MAX_ALERTS_PER_CYCLE`),
     used when the coach LLM call or its JSON parse fails.
     """
-    scored: list[tuple[int, int, dict]] = []  # (distance, index, alert)
+    scored: list[tuple[int, int, dict[str, Any]]] = []  # (distance, index, alert)
     for index, behavior in enumerate(parse_player_behaviors(status)):
         profile = player_by_index(team, index)
         if profile is None:
@@ -145,7 +145,7 @@ def heuristic_alerts(team: str, status: str) -> list[dict]:
 # -- coach LLM decision -----------------------------------------------------
 
 
-def _parse_alerts_json(text: str, valid_ids: set[str]) -> list[dict]:
+def _parse_alerts_json(text: str, valid_ids: set[str]) -> list[dict[str, Any]]:
     """Parse the coach's JSON reply into validated alert dicts.
 
     Tolerates fenced code blocks and surrounding prose by extracting the first
@@ -156,7 +156,7 @@ def _parse_alerts_json(text: str, valid_ids: set[str]) -> list[dict]:
         msg = "no JSON object found in coach response"
         raise ValueError(msg)
     payload = json.loads(text[start : end + 1])
-    alerts = []
+    alerts: list[dict[str, Any]] = []
     for raw in payload.get("alerts", []):
         pid = raw.get("player_id")
         if pid not in valid_ids:
@@ -185,7 +185,7 @@ def decide_alerts(
     *,
     anthropic_client: LLMClient | None = None,
     model: str = COACH_MODEL,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Ask the coach LLM which players to alert; fall back to the heuristic.
 
     Returns ``[{player_id, situation, reasoning}]`` (≤ :data:`MAX_ALERTS_PER_CYCLE`).
@@ -211,7 +211,9 @@ def decide_alerts(
 def _default_anthropic() -> LLMClient:
     import anthropic  # noqa: PLC0415 - lazy: only construct a real client when no fake is injected
 
-    return anthropic.Anthropic()
+    # anthropic.Anthropic satisfies LLMClient structurally at runtime; cast
+    # because its generated stubs don't match our minimal Protocol.
+    return cast("LLMClient", anthropic.Anthropic())
 
 
 # -- cycle + driver ---------------------------------------------------------
@@ -224,11 +226,11 @@ def run_coach_cycle(  # noqa: PLR0913 - orchestration entry; the extra params ar
     client: MatchClient,
     replay_logger: ReplayLogger | None = None,
     anthropic_client: LLMClient | None = None,
-    spawn: Callable[..., dict] = player_agent,
+    spawn: Callable[..., dict[str, Any]] = player_agent,
     mcp_base_url: str = "http://localhost:8765",
     session: object | None = None,
     coach_model: str = COACH_MODEL,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Run one coach pass at ``tick``; returns the per-player alert records.
 
     Reads status via ``client``, decides alerts (LLM + heuristic fallback),

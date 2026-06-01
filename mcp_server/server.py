@@ -21,7 +21,7 @@ Run with::
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_headers
@@ -61,7 +61,7 @@ def set_replay_logger(logger: object) -> None:
     _REPLAY_LOGGER = logger
 
 
-def _record_coach_cycle(team: str, player_id: str, override: dict) -> None:
+def _record_coach_cycle(team: str, player_id: str, override: dict[str, Any]) -> None:
     """Record a coach_cycle block in the replay for an override write.
 
     Best-effort: a logging failure (or no logger wired) must never break the
@@ -170,9 +170,9 @@ def get_match_status(team: str, token: str | None = None) -> str:
 def update_player_override(
     team: str,
     player_id: str,
-    override: dict,
+    override: dict[str, Any],
     token: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Store a behavior override for one player on ``team``.
 
     ``override`` schema::
@@ -188,7 +188,7 @@ def update_player_override(
     return {"status": "ok", "team": team, "player_id": player_id, "record": record}
 
 
-def get_player_overrides(team: str, token: str | None = None) -> dict:
+def get_player_overrides(team: str, token: str | None = None) -> dict[str, Any]:
     """Return all active (non-expired) overrides for ``team``.
 
     Expired overrides are auto-removed from state as a side effect. Requires a
@@ -199,7 +199,7 @@ def get_player_overrides(team: str, token: str | None = None) -> dict:
     return {"team": team, "tick": GAME_STATE.tick, "overrides": active}
 
 
-def clear_player_override(team: str, player_id: str, token: str | None = None) -> dict:
+def clear_player_override(team: str, player_id: str, token: str | None = None) -> dict[str, Any]:
     """Remove the active override for one player on ``team``.
 
     Requires a token matching ``team``. Returns confirmation including whether
@@ -240,7 +240,7 @@ def _error_response(exc: Exception) -> Response:
     return JSONResponse({"error": str(exc)}, status_code=getattr(exc, "status", 400))
 
 
-async def _parse_body(request: Request) -> dict:
+async def _parse_body(request: Request) -> dict[str, Any]:
     """Parse a JSON object request body, raising ValueError if it is not one."""
     body = await request.json()
     if not isinstance(body, dict):

@@ -7,10 +7,10 @@ logger and the live tick), and it can also be run directly for a single team::
 
     python team_loop.py home
 
-The in-process :class:`~agents.coach_loop.ServerMatchClient` shares ``GAME_STATE``
-only with a server running in the SAME process. A true separate-session
-(two-process / two Claude sessions) design needs an HTTP-backed ``MatchClient``,
-which is not implemented yet — see the note in ``ServerMatchClient``.
+Delegates to :func:`agents.coach_loop.coach_loop`, which builds an HTTP-backed
+``MCPHttpClient`` for the team and drives one ``run_coach_cycle`` per pass. The
+``tick_source`` defaults to reading the shared ``GAME_STATE.tick`` so coach
+cycles stay aligned with the simulator running in the same process.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ def run_coach(
         msg = f"unknown team {team!r}; expected one of {tuple(TOKENS)}"
         raise ValueError(msg)
 
-    from agents.coach_loop import CoachLoop, ServerMatchClient  # noqa: PLC0415
+    from agents.coach_loop import coach_loop  # noqa: PLC0415
     from mcp_server.server import GAME_STATE  # noqa: PLC0415
     from replay.logger import ReplayLogger  # noqa: PLC0415
 
@@ -66,9 +66,12 @@ def run_coach(
         def tick_source() -> int:
             return GAME_STATE.tick
 
-    client = ServerMatchClient(token=TOKENS[team])
-    coach = CoachLoop(team=team, client=client, replay_logger=logger)
-    coach.drive(tick_source=tick_source, max_cycles=max_cycles)
+    coach_loop(
+        team,
+        replay_logger=logger,
+        tick_source=tick_source,
+        max_cycles=max_cycles,
+    )
 
 
 def main() -> None:

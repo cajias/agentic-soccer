@@ -15,6 +15,7 @@ caller falls back to a built-in default, so the agents never hard-fail when the
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 
 # Pitch bands a role should occupy (team's attacking-toward-+x frame).
@@ -38,7 +39,9 @@ _ZONE_BY_ROLE: dict[str, str] = {
 }
 
 
-def _player(player_id: str, role: str, team: str, player_index: int, agent_slug: str) -> dict:
+def _player(
+    player_id: str, role: str, team: str, player_index: int, agent_slug: str,
+) -> dict[str, Any]:
     """Build one roster entry; ``expected_zone`` is derived from ``role``."""
     return {
         "player_id": player_id,
@@ -51,7 +54,7 @@ def _player(player_id: str, role: str, team: str, player_index: int, agent_slug:
 
 
 # Home XI — mirrors .claude/agents/coach-home.md and the player-*.md files.
-_HOME: list[dict] = [
+_HOME: list[dict[str, Any]] = [
     _player("alisson_gk", "GK", "home", 0, "player-alisson"),
     _player("gomez_cb", "CB", "home", 1, "player-gomez"),
     _player("matip_cb", "CB", "home", 2, "player-matip"),
@@ -66,7 +69,7 @@ _HOME: list[dict] = [
 ]
 
 # Away XI — generic opposition; mirrors coach-away.md's role layout.
-_AWAY: list[dict] = [
+_AWAY: list[dict[str, Any]] = [
     _player("away_gk", "GK", "away", 0, "away-gk"),
     _player("away_cb_left", "CB", "away", 1, "away-cb-left"),
     _player("away_cb_right", "CB", "away", 2, "away-cb-right"),
@@ -81,22 +84,22 @@ _AWAY: list[dict] = [
 ]
 
 # Flat, name-keyed roster across both teams. Each entry carries its ``team``.
-PLAYER_PERSONALITIES: dict[str, dict] = {p["player_id"]: p for p in (*_HOME, *_AWAY)}
+PLAYER_PERSONALITIES: dict[str, dict[str, Any]] = {p["player_id"]: p for p in (*_HOME, *_AWAY)}
 
 # Coach configuration: system-prompt source and the team token used to
 # authenticate MCP writes. Tokens match mcp_server.server.TOKENS.
-COACH_PERSONALITIES: dict[str, dict] = {
+COACH_PERSONALITIES: dict[str, dict[str, Any]] = {
     "home": {"agent_file": ".claude/agents/coach-home.md", "token": "home-secret-abc"},
     "away": {"agent_file": ".claude/agents/coach-away.md", "token": "away-secret-xyz"},
 }
 
 
-def players_for_team(team: str) -> dict[str, dict]:
+def players_for_team(team: str) -> dict[str, dict[str, Any]]:
     """Return the ``player_id -> profile`` mapping for one team."""
     return {pid: p for pid, p in PLAYER_PERSONALITIES.items() if p["team"] == team}
 
 
-def player_by_index(team: str, player_index: int) -> dict | None:
+def player_by_index(team: str, player_index: int) -> dict[str, Any] | None:
     """Return the roster entry for a squad index on ``team`` (or None)."""
     for profile in PLAYER_PERSONALITIES.values():
         if profile["team"] == team and profile["player_index"] == player_index:

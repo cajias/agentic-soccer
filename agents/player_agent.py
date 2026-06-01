@@ -14,7 +14,7 @@ client/session is constructed lazily.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import anthropic
 import requests
@@ -68,6 +68,15 @@ _DIRECTIVE_TOOL: dict[str, Any] = {
 }
 
 
+class _HttpSession(Protocol):
+    """Minimal structural view of a ``requests``-style HTTP session (injectable)."""
+
+    # Mirrors the untyped requests.Session surface; Any keeps fakes compatible.
+    def get(self, url: str, **kwargs: Any) -> Any: ...  # noqa: ANN401
+
+    def post(self, url: str, **kwargs: Any) -> Any: ...  # noqa: ANN401
+
+
 class MCPHttpClient:
     """Talks to the MCP server over HTTP using ``requests``.
 
@@ -76,7 +85,14 @@ class MCPHttpClient:
     ``mcp_server.server`` accepts.
     """
 
-    def __init__(self, base_url: str, token: str, *, session: object | None = None, timeout: float = _HTTP_TIMEOUT) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        *,
+        session: _HttpSession | None = None,
+        timeout: float = _HTTP_TIMEOUT,
+    ) -> None:
         """Bind to ``base_url`` with a team ``token``; ``session`` defaults to a new requests Session."""
         self._base = base_url.rstrip("/")
         self._token = token
@@ -98,7 +114,9 @@ class MCPHttpClient:
         data = resp.json()
         return data.get("narrator", "") if isinstance(data, dict) else str(data)
 
-    def update_player_override(self, team: str, player_id: str, override: dict) -> dict:
+    def update_player_override(
+        self, team: str, player_id: str, override: dict[str, Any],
+    ) -> dict[str, Any]:
         """Store a behavior override (HTTP POST ``/update_player_override``)."""
         resp = self._session.post(
             f"{self._base}/update_player_override",
@@ -107,7 +125,8 @@ class MCPHttpClient:
             timeout=self._timeout,
         )
         resp.raise_for_status()
-        return resp.json()
+        data: dict[str, Any] = resp.json()
+        return data
 
 
 class MatchClient(Protocol):
@@ -117,7 +136,9 @@ class MatchClient(Protocol):
         """Return the current narrator text for ``team``."""
         ...
 
-    def update_player_override(self, team: str, player_id: str, override: dict) -> dict:
+    def update_player_override(
+        self, team: str, player_id: str, override: dict[str, Any],
+    ) -> dict[str, Any]:
         """Store a behavior override for one player on ``team``."""
         ...
 
@@ -129,10 +150,13 @@ class _LLMMessages(Protocol):
 class LLMClient(Protocol):
     """Minimal structural view of the Anthropic client (its ``messages`` API)."""
 
-    messages: _LLMMessages
+    @property
+    def messages(self) -> _LLMMessages:
+        """The Anthropic ``messages`` API (``create`` returns a response)."""
+        ...
 
 
-def _extract_directive(response: object) -> dict | None:
+def _extract_directive(response: object) -> dict[str, Any] | None:
     """Pull the first ``set_player_directive`` tool input from a response."""
     for block in getattr(response, "content", []) or []:
         if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == _DIRECTIVE_TOOL["name"]:
@@ -159,11 +183,17 @@ class PlayerAgent:
 
     def _llm(self) -> LLMClient:
         """Return the Anthropic client, constructing a default one if needed."""
-        if self._anthropic is None:
-            self._anthropic = anthropic.Anthropic()
-        return self._anthropic
+        client = self._anthropic
+        if client is None:
+            # anthropic.Anthropic satisfies LLMClient structurally at runtime;
+            # cast because its generated stubs don't match our minimal Protocol.
+            client = cast("LLMClient", anthropic.Anthropic())
+            self._anthropic = client
+        return client
 
-    def decide(self, player_id: str, personality: Mapping[str, Any], situation: str) -> dict:
+    def decide(
+        self, player_id: str, personality: Mapping[str, Any], situation: str,
+    ) -> dict[str, Any]:
         """Decide hold-vs-override for ``player_id`` and write any override.
 
         Returns the replay ``coach_cycle`` alert record::
@@ -195,9 +225,11 @@ class PlayerAgent:
         duration_ticks = int(directive.get("duration_ticks") or DEFAULT_OVERRIDE_TICKS) if is_override else 0
 
         override_written = False
-        if is_override:
+        written_target: list[float] | None = None
+        if is_override and target_position is not None:
+            written_target = [float(target_position[0]), float(target_position[1])]
             override = {
-                "target_position": [float(target_position[0]), float(target_position[1])],
+                "target_position": written_target,
                 "duration_ticks": duration_ticks,
                 "reasoning": directive.get("reasoning", ""),
             }
@@ -209,7 +241,7 @@ class PlayerAgent:
             "coach_reasoning": situation,
             "player_decision": "override" if is_override else "hold",
             "override_written": override_written,
-            "target_position": list(target_position) if is_override else None,
+            "target_position": written_target,
             "duration_ticks": duration_ticks,
             "response_time_s": response_time_s,
         }
@@ -222,9 +254,9 @@ def player_agent(  # noqa: PLR0913 - spec signature plus injectable DI seams (an
     mcp_base_url: str = "http://localhost:8765",
     *,
     anthropic_client: LLMClient | None = None,
-    session: object | None = None,
+    session: _HttpSession | None = None,
     model: str = DEFAULT_MODEL,
-) -> dict:
+) -> dict[str, Any]:
     """Spawn a player agent to decide on an override and return its alert record.
 
     Looks up the personality, builds an :class:`MCPHttpClient` with the team
