@@ -1,0 +1,74 @@
+{
+  "description": "SNES-style footballer sprites for agentic-soccer replays.",
+  "frame_width": 16,
+  "frame_height": 24,
+  "facing": "sprites face right; flip horizontally for left (pygame.transform.flip(surf, True, False))",
+  "scale_recommendation": 4,
+  "outline_color": [
+    24,
+    18,
+    28
+  ],
+  "transparent_background": true,
+  "states": {
+    "idle": {
+      "frames": 1,
+      "frame_indices": [
+        0
+      ]
+    },
+    "run": {
+      "frames": 4,
+      "frame_indices": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "cycle": "play 1->2->3->4->1; ~8-12 fps reads as running"
+    }
+  },
+  "layout": {
+    "type": "single_row",
+    "frames_per_sheet": 5,
+    "order": [
+      "idle",
+      "run0",
+      "run1",
+      "run2",
+      "run3"
+    ],
+    "sheet_width": 80,
+    "sheet_height": 24,
+    "frame_x_for_index": "x = index * frame_width; y = 0"
+  },
+  "kits": {
+    "home": {
+      "file": "home.png",
+      "shirt": "red",
+      "shorts": "white"
+    },
+    "away": {
+      "file": "away.png",
+      "shirt": "blue",
+      "shorts": "black"
+    },
+    "goalkeeper": {
+      "file": "goalkeeper.png",
+      "shirt": "green",
+      "shorts": "black"
+    }
+  },
+  "ball": {
+    "file": "ball.png",
+    "width": 8,
+    "height": 8
+  },
+  "ball_shadow": {
+    "file": "ball_shadow.png",
+    "width": 8,
+    "height": 4,
+    "note": "semi-transparent; blit under the ball"
+  },
+  "preview": "_preview.png"
+}
