@@ -1,9 +1,9 @@
 {
   "description": "Jaleco 'Goal!'-style footballer sprites for agentic-soccer replays.",
-  "frame_width": 24,
-  "frame_height": 32,
+  "frame_width": 40,
+  "frame_height": 56,
   "facing": "sprites face right; flip horizontally for left (pygame.transform.flip(surf, True, False))",
-  "scale_recommendation": 3,
+  "scale_recommendation": 2,
   "outline_color": [
     20,
     16,
@@ -39,8 +39,8 @@
       "run2",
       "run3"
     ],
-    "sheet_width": 120,
-    "sheet_height": 32,
+    "sheet_width": 200,
+    "sheet_height": 56,
     "frame_x_for_index": "x = index * frame_width; y = 0"
   },
   "kits": {

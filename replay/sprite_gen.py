@@ -1,21 +1,24 @@
 """Jaleco "Goal!"-style footballer sprite-sheet generator for agentic-soccer.
 
-Draws chunky pixel-art footballer sprites procedurally with pygame (no external
-art), in the spirit of Jaleco's *Goal!* (Super Famicom): stocky bodies, boldly
-**shaded** kits (a lit highlight tone, the base team colour, and a shadow tone,
-lit from the upper-left), defined shorts + socks + boots, short hair over a skin
-head, 1px dark outlines and crisp pixels (no anti-aliasing).
+Draws pixel-art footballer sprites procedurally with pygame (no external art),
+in the spirit of Jaleco's *Goal!* (Super Famicom): stocky bodies, boldly
+**shaded** kits (a lit highlight, a mid tone, the base team colour and a shadow
+tone, lit from the upper-left), defined shorts + socks + boots, separated arms,
+a clear gap between the legs in the run cycle, short hair over a skin head with a
+small visible face (eye + neck), 1px dark outlines and crisp pixels (no
+anti-aliasing). The native frame is large enough (40x56) that a 2x upscale reads
+smoothly instead of as hard chunky blocks.
 
 Outputs (to ``replay/assets/sprites/``):
 
 * ``home.png`` / ``away.png`` / ``goalkeeper.png`` -- one sprite *sheet* per kit,
   a single row of 5 frames laid out as ``[idle, run0, run1, run2, run3]``.
-  Frame size is 24w x 32h. Sheet size is 120w x 32h.
+  Frame size is 40w x 56h. Sheet size is 200w x 56h.
 * ``ball.png`` -- 10x10 white ball with black pentagon hints and shading.
 * ``ball_shadow.png`` -- 10x5 soft dark elliptical shadow blob (for the ball).
 * ``manifest.json`` -- the authoritative description of frame size, layout,
   per-kit files, facing convention and the recommended scale factor.
-* ``_preview.png`` -- all kits + all frames + ball, scaled up 6x with
+* ``_preview.png`` -- all kits + all frames + ball, scaled up 3x with
   nearest-neighbour on a checkerboard background, for human eyeballing.
 
 Sprites face RIGHT. The renderer flips them for left-facing movement
@@ -52,13 +55,16 @@ import pygame
 
 
 # --- Geometry ----------------------------------------------------------------
-FRAME_W = 24
-FRAME_H = 32
+# Native frame is large so the renderer upscales only ~2x (instead of 3x off a
+# 24x32 base), which removes most of the chunky-pixel look. On-screen footprint
+# stays about the same: old 24x32 @ 3 = 72x96; new 40x56 @ 2 = 80x112.
+FRAME_W = 40
+FRAME_H = 56
 RUN_FRAMES = 4
 FRAMES_PER_SHEET = 1 + RUN_FRAMES  # idle + run cycle
 SHEET_W = FRAME_W * FRAMES_PER_SHEET
 SHEET_H = FRAME_H
-SCALE = 3  # recommended nearest-neighbour scale (24x32 is ~1.5x the old 16x24)
+SCALE = 2  # recommended nearest-neighbour scale (40x56 @ 2 ~= old 24x32 @ 3)
 
 # --- Palette (RGB) -----------------------------------------------------------
 TRANSPARENT = (0, 0, 0, 0)
@@ -71,11 +77,14 @@ HAIR_HI = (104, 70, 46)
 BOOT = (28, 26, 32)
 BOOT_HI = (66, 64, 74)
 
-# Per-kit colours. Each kit gives a 3-tone shirt (highlight / base / shadow),
-# a 2-tone shorts, a 2-tone sock and an accent patch (number/trim).
+# Per-kit colours. Each kit gives a 4-tone shirt (highlight / mid / base /
+# shadow), a 3-tone shorts, a 2-tone sock and an accent patch (number/trim).
+# The mid tone is the gradient step between highlight and base that lifts the
+# shirt off the old flat-fill look.
 KITS: dict[str, dict[str, Any]] = {
     "home": {  # red shirt, white shorts
-        "shirt_hi": (236, 96, 84),
+        "shirt_hi": (244, 120, 108),
+        "shirt_mid": (224, 78, 68),
         "shirt": (208, 48, 42),
         "shirt_shade": (150, 28, 26),
         "shorts_hi": (255, 255, 255),
@@ -86,7 +95,8 @@ KITS: dict[str, dict[str, Any]] = {
         "patch": (250, 250, 250),
     },
     "away": {  # blue shirt, dark shorts
-        "shirt_hi": (96, 138, 238),
+        "shirt_hi": (110, 152, 244),
+        "shirt_mid": (70, 112, 226),
         "shirt": (46, 86, 206),
         "shirt_shade": (28, 52, 150),
         "shorts_hi": (58, 64, 82),
@@ -97,7 +107,8 @@ KITS: dict[str, dict[str, Any]] = {
         "patch": (248, 224, 92),
     },
     "goalkeeper": {  # teal/green shirt, dark shorts
-        "shirt_hi": (92, 226, 188),
+        "shirt_hi": (108, 236, 200),
+        "shirt_mid": (66, 212, 172),
         "shirt": (42, 192, 150),
         "shirt_shade": (24, 138, 106),
         "shorts_hi": (54, 60, 70),
@@ -110,6 +121,10 @@ KITS: dict[str, dict[str, Any]] = {
 }
 
 KIT_ORDER = ["home", "away", "goalkeeper"]
+
+# Shirt gradient column thresholds (fraction of width: highlight | mid | base).
+SHIRT_HI_FRAC = 0.22
+SHIRT_MID_FRAC = 0.55
 
 
 def _px(surf: pygame.Surface, x: int, y: int, color: tuple[int, int, int]) -> None:
@@ -157,6 +172,40 @@ def _shaded_block(  # noqa: PLR0913 - a beveled-rect primitive; tones+geometry i
     _rect(surf, x + w - 1, y, 1, h, shade)
 
 
+def _shaded_shirt(  # noqa: PLR0913 - a 4-tone shirt primitive; tones+geometry irreducible
+    surf: pygame.Surface,
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    hi: tuple[int, int, int],
+    mid: tuple[int, int, int],
+    base: tuple[int, int, int],
+    shade: tuple[int, int, int],
+) -> None:
+    """Fill the torso with a 4-tone left->right gradient, lit from upper-left.
+
+    Columns step highlight -> mid -> base across the shirt, with the bottom row
+    and rightmost column darkened to the ``shade`` tone. This adds a true mid
+    gradient (not just a 1px bevel) so the shirt reads as a smoothly lit volume.
+    """
+    for xx in range(x, x + w):
+        rel = (xx - x) / max(1, w - 1)
+        if rel < SHIRT_HI_FRAC:
+            col = hi
+        elif rel < SHIRT_MID_FRAC:
+            col = mid
+        else:
+            col = base
+        _rect(surf, xx, y, 1, h, col)
+    # Top sheen + left highlight edge.
+    _rect(surf, x, y, w, 1, hi)
+    _rect(surf, x, y, 1, h, hi)
+    # Shadow: bottom edge + right edge.
+    _rect(surf, x, y + h - 1, w, 1, shade)
+    _rect(surf, x + w - 1, y, 1, h, shade)
+
+
 def _outline_silhouette(surf: pygame.Surface) -> None:
     """Add a 1px dark outline around every opaque blob.
 
@@ -180,62 +229,90 @@ def _outline_silhouette(surf: pygame.Surface) -> None:
 
 
 # --- Footballer drawing ------------------------------------------------------
-# Body drawn facing RIGHT, centred horizontally in the 24-wide frame.
-# Vertical bands (base, before per-frame bob), in a 24x32 frame:
-#   y 3-9    head + hair (7 tall)
-#   y 10-19  torso / shirt (10 tall)
-#   y 20-24  shorts (5 tall)
-#   y 25-29  socks / legs
-#   y 29-31  boots
+# Body drawn facing RIGHT, centred horizontally in the 40-wide frame.
+# Vertical bands (base, before per-frame bob), in a 40x56 frame:
+#   y 5-15   head + hair (11 tall, 10w)
+#   y 16-33  torso / shirt (18 tall, 18w)
+#   y 34-41  shorts (8 tall, 20w)
+#   y 42-50  socks / legs
+#   y 50-53  boots
 # A "pose" describes the two legs (and arm swing) for a frame.
 
-CX = 12  # nominal centre column
+CX = 20  # nominal centre column
 
 
 def _draw_head(s: pygame.Surface, top: int) -> None:
-    """Draw the skin head + short hair cap + a single eye, facing right."""
-    hx = CX - 3
-    # Skin head, 6 wide x 6 tall.
-    _shaded_block(s, hx, top, 6, 6, SKIN, SKIN_HI, SKIN_SHADE)
+    """Draw the skin head + short hair cap + a small face, facing right."""
+    hx = CX - 5
+    hw, hh = 10, 11
+    # Skin head.
+    _shaded_block(s, hx, top, hw, hh, SKIN, SKIN_HI, SKIN_SHADE)
     # Hair cap over top + back (left) of the head.
-    _rect(s, hx, top, 6, 2, HAIR)
-    _rect(s, hx, top, 1, 4, HAIR)
-    _px(s, hx, top, HAIR_HI)
-    _px(s, hx + 1, top, HAIR_HI)
+    _rect(s, hx, top, hw, 3, HAIR)
+    _rect(s, hx, top, 2, 7, HAIR)
+    _rect(s, hx, top, hw, 1, HAIR_HI)
+    _px(s, hx + 1, top + 1, HAIR_HI)
     # Ear hint on the back of the head.
-    _px(s, hx, top + 3, SKIN_SHADE)
-    # Eye (facing right).
-    _px(s, hx + 4, top + 3, OUTLINE)
-    # Jaw / chin shade.
-    _px(s, hx + 1, top + 5, SKIN_SHADE)
+    _rect(s, hx + 1, top + 5, 1, 2, SKIN_SHADE)
+    # Face, facing right: brow shadow, eye, cheek/jaw shade.
+    eye_x = hx + 7
+    eye_y = top + 5
+    _px(s, eye_x, eye_y - 1, SKIN_SHADE)   # brow
+    _px(s, eye_x, eye_y, OUTLINE)          # eye
+    _px(s, eye_x + 1, eye_y, SKIN_HI)      # eye highlight / nose bridge
+    _rect(s, hx + 2, top + hh - 2, hw - 4, 2, SKIN_SHADE)  # jaw / chin shade
+    _px(s, eye_x, top + hh - 3, SKIN_SHADE)  # cheek shade
 
 
 def _draw_torso(s: pygame.Surface, kit: dict[str, Any], ty: int) -> None:
-    """Draw the shaded shirt with a chest accent patch and a neck."""
+    """Draw the 4-tone shaded shirt with a chest accent patch and a neck."""
     # Neck.
-    _rect(s, CX - 1, ty - 1, 3, 1, SKIN_SHADE)
-    # Shirt block, 10 wide x 10 tall.
-    sx = CX - 5
-    _shaded_block(s, sx, ty, 10, 10, kit["shirt"], kit["shirt_hi"], kit["shirt_shade"])
+    _rect(s, CX - 2, ty - 2, 4, 2, SKIN)
+    _rect(s, CX - 2, ty - 1, 4, 1, SKIN_SHADE)
+    # Shirt block, 18 wide x 18 tall.
+    sx = CX - 9
+    sw, sh = 18, 18
+    _shaded_shirt(
+        s, sx, ty, sw, sh,
+        kit["shirt_hi"], kit["shirt_mid"], kit["shirt"], kit["shirt_shade"],
+    )
+    # Collar V at the neck.
+    _px(s, CX - 1, ty, kit["shirt_shade"])
+    _px(s, CX + 1, ty, kit["shirt_shade"])
+    _px(s, CX, ty + 1, kit["shirt_shade"])
     # Extra shadow wedge under the right arm / lower-right torso.
-    _rect(s, sx + 7, ty + 6, 2, 3, kit["shirt_shade"])
-    # Chest accent patch (number/trim), 3 wide x 4 tall, slightly right-of-centre.
-    _rect(s, CX, ty + 3, 3, 4, kit["patch"])
-    _px(s, CX, ty + 3, kit["shirt_shade"])  # keep patch reading as on the shirt
+    _rect(s, sx + sw - 4, ty + sh - 7, 3, 6, kit["shirt_shade"])
+    # Chest accent patch (number/trim), centred-right.
+    _rect(s, CX, ty + 6, 5, 7, kit["patch"])
+    _rect(s, CX, ty + 6, 1, 7, kit["shirt_shade"])  # keep patch reading as on the shirt
 
 
-def _draw_arm(s: pygame.Surface, kit: dict[str, Any], ty: int, forward: bool) -> None:
-    """Draw the swinging near arm: forward (+x) or trailing back (-x)."""
-    if forward:
-        ax = CX + 5
-        _shaded_block(s, ax, ty + 1, 2, 6, kit["shirt"], kit["shirt_hi"], kit["shirt_shade"])
-        _rect(s, ax, ty + 7, 2, 2, SKIN)  # forearm/hand
-        _px(s, ax + 1, ty + 8, SKIN_SHADE)
-    else:
-        ax = CX - 6
-        _shaded_block(s, ax, ty + 1, 2, 6, kit["shirt"], kit["shirt_hi"], kit["shirt_shade"])
-        _rect(s, ax, ty + 7, 2, 2, SKIN)  # forearm/hand
-        _px(s, ax, ty + 8, SKIN_SHADE)
+def _draw_arm(
+    s: pygame.Surface,
+    kit: dict[str, Any],
+    ty: int,
+    side: int,
+    forward: bool,
+) -> None:
+    """Draw one arm at ``side`` (-1 near/left edge, +1 far/right edge).
+
+    ``forward`` swings the hand forward (down + in front); otherwise the arm
+    trails slightly back. Both arms are drawn each frame so the player reads as
+    two-armed, with the swing alternating between them per pose.
+    """
+    sx = CX - 9
+    sw = 18
+    ax = sx + sw - 2 if side > 0 else sx - 2
+    drop = 1 if forward else 0
+    _shaded_block(
+        s, ax, ty + 1 + drop, 3, 9,
+        kit["shirt"], kit["shirt_hi"], kit["shirt_shade"],
+    )
+    # Forearm / hand (skin) at the bottom of the sleeve.
+    hand_y = ty + 1 + drop + 9
+    _rect(s, ax, hand_y, 3, 3, SKIN)
+    _px(s, ax + (2 if side > 0 else 0), hand_y + 2, SKIN_SHADE)
+    _rect(s, ax, hand_y, 3, 1, SKIN_HI)
 
 
 def _draw_leg(  # noqa: PLR0913 - a leg primitive; geometry + tones are irreducible
@@ -249,56 +326,61 @@ def _draw_leg(  # noqa: PLR0913 - a leg primitive; geometry + tones are irreduci
 ) -> None:
     """Draw one leg: a thigh (shorts skin), a 2-tone sock and a boot.
 
-    ``leg_x`` is the left column of the 2px-wide leg. ``foot_dx`` shifts the
+    ``leg_x`` is the left column of the 4px-wide leg. ``foot_dx`` shifts the
     boot horizontally for stride. ``lead`` (front leg) uses the bright sock tone;
     the trailing leg uses the shaded sock tone so the legs read as alternating.
     """
+    leg_w = 4
     sock = kit["sock"] if lead else kit["sock_shade"]
     sock_sh = kit["sock_shade"]
     # Bare thigh just below the shorts (a touch of skin).
-    _rect(s, leg_x, leg_top, 2, 1, SKIN_SHADE)
-    # Sock column.
-    for i in range(1, length):
-        _rect(s, leg_x, leg_top + i, 2, 1, sock)
-    _px(s, leg_x + 1, leg_top + length - 1, sock_sh)  # right-edge sock shade
-    # Boot: 3px wide pointing in the stride direction, 2 tall.
+    _rect(s, leg_x, leg_top, leg_w, 2, SKIN)
+    _rect(s, leg_x, leg_top + 1, leg_w, 1, SKIN_SHADE)
+    # Sock column with a left-edge highlight + right-edge shade.
+    for i in range(2, length):
+        _rect(s, leg_x, leg_top + i, leg_w, 1, sock)
+    _rect(s, leg_x + leg_w - 1, leg_top + 2, 1, max(0, length - 2), sock_sh)
+    # Boot: pointing in the stride direction, 3 tall.
     boot_y = leg_top + length
     bx = leg_x + min(0, foot_dx)
-    bw = 3 + abs(foot_dx)
-    _rect(s, bx, boot_y, bw, 2, BOOT)
+    bw = leg_w + abs(foot_dx)
+    _rect(s, bx, boot_y, bw, 3, BOOT)
     _rect(s, bx, boot_y, bw, 1, BOOT_HI)  # top sheen on the boot
+    _rect(s, bx, boot_y + 2, bw, 1, OUTLINE)  # sole
 
 
-# Each pose: (front_leg, back_leg, arm_forward, bob)
+# Each pose: (front_leg, back_leg, near_arm_forward, bob)
 # leg tuple = (x, length, foot_dx, lead)
+# Legs are 4px wide; a clear horizontal gap between front/back x keeps them from
+# merging in the run cycle.
 POSES: dict[str, dict[str, Any]] = {
     "idle": {
-        "front": (CX + 1, 4, 0, True),
-        "back": (CX - 3, 4, 0, False),
+        "front": (CX + 2, 8, 0, True),
+        "back": (CX - 6, 8, 0, False),
         "arm_forward": False,
         "bob": 0,
     },
     "run0": {  # right leg drives forward, left leg extends behind (ground contact)
-        "front": (CX + 2, 3, 2, True),
-        "back": (CX - 4, 4, -2, False),
+        "front": (CX + 4, 6, 3, True),
+        "back": (CX - 8, 8, -3, False),
         "arm_forward": True,
         "bob": 0,
     },
     "run1": {  # passing under the body, bob up
-        "front": (CX, 5, 0, True),
-        "back": (CX + 1, 4, 0, False),
+        "front": (CX + 1, 9, 1, True),
+        "back": (CX - 5, 7, -1, False),
         "arm_forward": False,
         "bob": -1,
     },
     "run2": {  # left leg drives forward, right leg extends behind (mirror stride)
-        "front": (CX + 1, 4, 2, False),
-        "back": (CX - 4, 3, -2, True),
+        "front": (CX + 3, 8, 3, False),
+        "back": (CX - 8, 6, -3, True),
         "arm_forward": False,
         "bob": 0,
     },
     "run3": {  # passing under the body again, bob up
-        "front": (CX - 1, 5, 0, True),
-        "back": (CX, 4, 0, False),
+        "front": (CX, 9, -1, True),
+        "back": (CX - 4, 7, 1, False),
         "arm_forward": True,
         "bob": -1,
     },
@@ -308,30 +390,34 @@ POSE_SEQUENCE = ["idle", "run0", "run1", "run2", "run3"]
 
 
 def _draw_player_frame(kit: dict[str, Any], pose_name: str) -> pygame.Surface:
-    """Draw one 24x32 footballer frame onto a transparent surface."""
+    """Draw one 40x56 footballer frame onto a transparent surface."""
     s = pygame.Surface((FRAME_W, FRAME_H), pygame.SRCALPHA)
     s.fill(TRANSPARENT)
     pose = POSES[pose_name]
     bob = pose["bob"]
 
-    head_top = 3 + bob
-    torso_top = head_top + 7      # y~10
-    shorts_top = torso_top + 10   # y~20
-    legs_top = shorts_top + 5     # y~25
+    head_top = 5 + bob
+    torso_top = head_top + 11     # y~16
+    shorts_top = torso_top + 18   # y~34
+    legs_top = shorts_top + 8     # y~42
 
-    # Back leg first (behind the body), then torso, then front leg on top.
+    # Far arm first (behind the body).
+    _draw_arm(s, kit, torso_top, side=1, forward=pose["arm_forward"])
+
+    # Back leg (behind the body), then shorts, torso, head, near arm, front leg.
     bx, blen, bdx, blead = pose["back"]
     _draw_leg(s, kit, bx, legs_top, blen, bdx, blead)
 
-    # Shorts block, 12 wide x 5 tall.
+    # Shorts block, 20 wide x 8 tall, with a central seam for leg separation.
     _shaded_block(
-        s, CX - 6, shorts_top, 12, 5,
+        s, CX - 10, shorts_top, 20, 8,
         kit["shorts"], kit["shorts_hi"], kit["shorts_shade"],
     )
+    _rect(s, CX - 1, shorts_top + 4, 2, 4, kit["shorts_shade"])  # inseam shadow
 
     _draw_torso(s, kit, torso_top)
     _draw_head(s, head_top)
-    _draw_arm(s, kit, torso_top, pose["arm_forward"])
+    _draw_arm(s, kit, torso_top, side=-1, forward=not pose["arm_forward"])
 
     fx, flen, fdx, flead = pose["front"]
     _draw_leg(s, kit, fx, legs_top, flen, fdx, flead)
@@ -341,7 +427,7 @@ def _draw_player_frame(kit: dict[str, Any], pose_name: str) -> pygame.Surface:
 
 
 def build_kit_sheet(kit_name: str) -> pygame.Surface:
-    """Build the 120x32 sprite sheet for one kit (idle + 4 run frames)."""
+    """Build the 200x56 sprite sheet for one kit (idle + 4 run frames)."""
     kit = KITS[kit_name]
     sheet = pygame.Surface((SHEET_W, SHEET_H), pygame.SRCALPHA)
     sheet.fill(TRANSPARENT)
@@ -408,7 +494,7 @@ def build_preview(
     sheets: dict[str, pygame.Surface],
     ball: pygame.Surface,
     shadow: pygame.Surface,
-    scale: int = 6,
+    scale: int = 3,
 ) -> pygame.Surface:
     """Lay out all kit sheets + ball, scaled up nearest-neighbour."""
     pad = 8
@@ -456,7 +542,7 @@ def main() -> None:
     pygame.image.save(shadow, str(out_dir / "ball_shadow.png"))
     written.append(("ball_shadow.png", shadow.get_size()))
 
-    preview = build_preview(sheets, ball, shadow, scale=6)
+    preview = build_preview(sheets, ball, shadow, scale=3)
     pygame.image.save(preview, str(out_dir / "_preview.png"))
 
     manifest = {
