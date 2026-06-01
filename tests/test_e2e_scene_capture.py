@@ -77,9 +77,16 @@ def is_white(r: Pixels, g: Pixels, b: Pixels) -> Mask:
     return (r > 185) & (g > 185) & (b > 185)
 
 
-def is_net(r: Pixels, g: Pixels, b: Pixels) -> Mask:
-    """Goal net mesh + posts: light grey through white."""
-    return (r > 168) & (g > 168) & (b > 168)
+def is_net_mesh(r: Pixels, g: Pixels, b: Pixels) -> Mask:
+    """Goal-net cross-hatch grey, specifically ``NET_GREY`` ~(206, 214, 224).
+
+    It is light, slightly *blue* (b >= r), and dimmer than the pure-white pitch
+    lines / posts (238 / 236). Excluding bright white (r < 232) is what makes the
+    goal-net test mutation-proof: the touchlines, goal line, and penalty-box
+    lines that pass through the goal screen region are pure white, so they do NOT
+    satisfy this predicate -- only the actual mesh does.
+    """
+    return (r > 180) & (r < 232) & (g >= r) & (b >= r)
 
 
 def is_yellow(r: Pixels, g: Pixels, b: Pixels) -> Mask:
@@ -260,11 +267,17 @@ def test_both_teams_detected(headless_pygame: ModuleType) -> None:
 # 3. Goal nets on both sides
 # ---------------------------------------------------------------------------
 def test_goal_nets_present_both_sides(real_surface: pygame.Surface) -> None:
-    """The left (x=-1) and right (x=+1) goal regions both carry net/post pixels."""
-    left = region_has_color(real_surface, (0, 180, 160, 320), is_net, min_count=120)
-    right = region_has_color(real_surface, (800, 180, 960, 320), is_net, min_count=120)
-    assert left, "left goal net pixels missing"
-    assert right, "right goal net pixels missing"
+    """Both goal boxes carry a dense NET_GREY mesh (not just stray white lines).
+
+    Mutation-verified: with both ``_draw_goal_net`` calls stubbed the mesh count
+    in each goal box drops to 0 (the pitch lines are pure white and excluded),
+    so this assertion goes RED -- it genuinely requires the net to be drawn.
+    Tight goal-box rects exclude the centre/halfway markings entirely.
+    """
+    left = region_has_color(real_surface, (0, 170, 150, 350), is_net_mesh, min_count=600)
+    right = region_has_color(real_surface, (810, 170, 960, 350), is_net_mesh, min_count=600)
+    assert left, "left goal net mesh missing"
+    assert right, "right goal net mesh missing"
 
 
 # ---------------------------------------------------------------------------
