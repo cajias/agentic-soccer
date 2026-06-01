@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Fakes (mirroring tests/test_engine.py so this runs without the C++ engine)
 # ---------------------------------------------------------------------------
-def _raw_obs(score: list[int]) -> dict:
+def _raw_obs(score: list[int]) -> dict[str, object]:
     """A minimal gfootball-style raw observation the narrator can consume."""
     return {
         "left_team": np.zeros((11, 2), dtype=np.float32),
@@ -49,7 +49,7 @@ class _FakeUnwrapped:
     def __init__(self, env: _FakeEnv) -> None:
         self._env = env
 
-    def observation(self) -> list[dict]:
+    def observation(self) -> list[dict[str, object]]:
         return [_raw_obs(self._env.score) for _ in range(22)]
 
 
@@ -86,7 +86,7 @@ class _FakeEnv:
         self.closed = True
 
 
-def _install_fake_gfootball(monkeypatch, env: _FakeEnv) -> None:
+def _install_fake_gfootball(monkeypatch: MonkeyPatch, env: _FakeEnv) -> None:
     """Inject a fake ``gfootball.env`` module returning ``env``."""
     fake_env_mod = types.ModuleType("gfootball.env")
     fake_env_mod.create_environment = lambda **_kwargs: env  # type: ignore[attr-defined]
@@ -99,7 +99,7 @@ def _install_fake_gfootball(monkeypatch, env: _FakeEnv) -> None:
 # ---------------------------------------------------------------------------
 # E2E: a game can be played
 # ---------------------------------------------------------------------------
-def test_e2e_match_plays_and_writes_replay(tmp_path: Path, monkeypatch) -> None:
+def test_e2e_match_plays_and_writes_replay(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """A 50-step match runs end to end and produces a well-formed replay file."""
     env = _FakeEnv()
     _install_fake_gfootball(monkeypatch, env)
@@ -149,7 +149,7 @@ def test_e2e_match_plays_and_writes_replay(tmp_path: Path, monkeypatch) -> None:
         assert len(ball) >= 2
 
 
-def test_e2e_coach_override_is_applied(tmp_path: Path, monkeypatch) -> None:
+def test_e2e_coach_override_is_applied(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """An override set via the real GameState steers the player and survives the run.
 
     Home player 9 sits at the origin; target (0.7, 0.0) must produce a RIGHT
