@@ -35,11 +35,13 @@ import json
 import os
 from pathlib import Path
 
+
 # Headless: no display is available in CI / agent environments. Must be set
 # before pygame video subsystem init.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
-import pygame  # noqa: E402  (after SDL_VIDEODRIVER)
+import pygame
+
 
 # --- Geometry ----------------------------------------------------------------
 FRAME_W = 16
