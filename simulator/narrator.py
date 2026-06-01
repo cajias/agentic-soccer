@@ -20,7 +20,9 @@ import math
 from typing import Any
 
 
-# Player roles by squad index (same layout for both teams).
+# Human-readable role labels by squad index, for narration only. Intentionally
+# distinct from :data:`simulator.roles.ROLES` (which carries terse role codes);
+# do not merge the two.
 ROLE_LABELS: tuple[str, ...] = (
     "GK",
     "CB (left)",

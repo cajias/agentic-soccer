@@ -37,8 +37,9 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 
-from replay.logger import ROLES, ReplayLogger
+from replay.logger import ReplayLogger
 from simulator.narrator import narrate
+from simulator.roles import ROLES
 
 
 if TYPE_CHECKING:

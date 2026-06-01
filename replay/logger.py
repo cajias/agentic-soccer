@@ -12,13 +12,14 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from simulator.roles import ROLES
+
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-# Player roles by index within a team (gfootball 11v11 layout).
-ROLES = ["GK", "CB", "CB", "LB", "RB", "CM", "CM", "CM", "LW", "RW", "ST"]
+__all__ = ["ROLES", "ReplayLogger"]
 
 
 def _role(index: int) -> str:
