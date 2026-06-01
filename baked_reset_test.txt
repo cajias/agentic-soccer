@@ -1,2 +1,0 @@
-RESET_OK type ndarray len 22
-STEP_OK

@@ -99,7 +99,7 @@ def _px(surf: pygame.Surface, x: int, y: int, color: tuple[int, int, int]) -> No
         surf.set_at((x, y), color)
 
 
-def _rect(
+def _rect(  # noqa: PLR0913 - a pixel-rect primitive; the x/y/w/h/color args are irreducible
     surf: pygame.Surface,
     x: int,
     y: int,
@@ -147,7 +147,7 @@ def _outline_silhouette(surf: pygame.Surface) -> None:
 # A "pose" describes the two legs and two arms for a frame.
 
 
-def _draw_player_frame(kit: dict, pose: str, bob: int) -> pygame.Surface:
+def _draw_player_frame(kit: dict, pose: str, bob: int) -> pygame.Surface:  # noqa: C901, PLR0915 - procedural sprite art: one statement per body part, kept inline for clarity
     """Draw one 16x24 footballer frame onto a transparent surface.
 
     ``pose`` is one of: ``idle``, ``contactA``, ``passA``, ``contactB``, ``passB``.
@@ -352,6 +352,7 @@ def build_preview(sheets: dict[str, pygame.Surface], ball: pygame.Surface,
 
 
 def main() -> None:
+    """Generate all sprite sheets, the ball, manifest, and preview PNG."""
     pygame.init()
     out_dir = Path(__file__).resolve().parent / "assets" / "sprites"
     out_dir.mkdir(parents=True, exist_ok=True)

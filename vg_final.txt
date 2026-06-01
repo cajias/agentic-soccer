@@ -1,4 +1,0 @@
-gfootball_file: /opt/venv/lib/python3.12/site-packages/gfootball/__init__.py
-reset_ok shape: (72, 96, 4)
-step_ok reward: 0.0 done: False
-GFOOTBALL_WORKS

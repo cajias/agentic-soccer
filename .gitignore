@@ -14,3 +14,8 @@ uv-*.lock
 
 # Claude hook logs
 .claude/hooks/.logs/
+scratch_*.txt
+gym22_reset_test.txt
+vg_final.txt
+baked_reset_test.txt
+*_reset_test.txt
