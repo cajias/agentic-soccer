@@ -68,13 +68,38 @@ _DIRECTIVE_TOOL: dict[str, Any] = {
 }
 
 
+class _HttpResponse(Protocol):
+    """Structural view of the HTTP response used by :class:`MCPHttpClient`."""
+
+    def raise_for_status(self) -> Any: ...  # noqa: ANN401 - requests returns Self
+
+    def json(self) -> Any: ...  # noqa: ANN401 - decoded JSON is dynamically typed
+
+
 class _HttpSession(Protocol):
-    """Minimal structural view of a ``requests``-style HTTP session (injectable)."""
+    """Structural view of the ``requests``-style HTTP session (injectable).
 
-    # Mirrors the untyped requests.Session surface; Any keeps fakes compatible.
-    def get(self, url: str, **kwargs: Any) -> Any: ...  # noqa: ANN401
+    Signatures match exactly how :class:`MCPHttpClient` calls the session, so
+    both ``requests.Session`` and test fakes satisfy the protocol.
+    """
 
-    def post(self, url: str, **kwargs: Any) -> Any: ...  # noqa: ANN401
+    def get(
+        self,
+        url: str,
+        *,
+        params: dict[str, Any] | None = ...,
+        headers: dict[str, str] | None = ...,
+        timeout: float | None = ...,
+    ) -> _HttpResponse: ...
+
+    def post(
+        self,
+        url: str,
+        *,
+        json: dict[str, Any] | None = ...,
+        headers: dict[str, str] | None = ...,
+        timeout: float | None = ...,
+    ) -> _HttpResponse: ...
 
 
 class MCPHttpClient:

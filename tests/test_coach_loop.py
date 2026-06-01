@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
 from agents.coach_loop import (
     MAX_ALERTS_PER_CYCLE,
@@ -15,6 +16,10 @@ from agents.coach_loop import (
 from agents.personalities import PLAYER_PERSONALITIES, players_for_team
 from agents.player_agent import MCPHttpClient, player_agent
 from replay.logger import ReplayLogger
+
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 _ALERT_KEYS = {
@@ -32,30 +37,47 @@ _ALERT_KEYS = {
 
 
 class _FakeResponse:
-    def __init__(self, payload: dict) -> None:
+    def __init__(self, payload: dict[str, Any]) -> None:
         self._payload = payload
 
     def raise_for_status(self) -> None:
         return None
 
-    def json(self) -> dict:
+    def json(self) -> dict[str, Any]:
         return self._payload
 
 
 class _FakeSession:
     """Stand-in for requests.Session: serves fixed payloads, records calls."""
 
-    def __init__(self, get_payload: dict | None = None, post_payload: dict | None = None) -> None:
+    def __init__(
+        self,
+        get_payload: dict[str, Any] | None = None,
+        post_payload: dict[str, Any] | None = None,
+    ) -> None:
         self._get_payload = get_payload or {"narrator": "report"}
         self._post_payload = post_payload or {"status": "ok"}
-        self.get_calls: list[dict] = []
-        self.post_calls: list[dict] = []
+        self.get_calls: list[dict[str, Any]] = []
+        self.post_calls: list[dict[str, Any]] = []
 
-    def get(self, url, params=None, headers=None, timeout=None) -> _FakeResponse:  # noqa: ARG002
+    # headers/timeout mirror requests.Session but are unused by the fake.
+    def get(
+        self,
+        url: str,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,  # noqa: ARG002
+        timeout: float | None = None,  # noqa: ARG002
+    ) -> _FakeResponse:
         self.get_calls.append({"url": url, "params": params})
         return _FakeResponse(self._get_payload)
 
-    def post(self, url, json=None, headers=None, timeout=None) -> _FakeResponse:  # noqa: ARG002
+    def post(
+        self,
+        url: str,
+        json: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,  # noqa: ARG002
+        timeout: float | None = None,  # noqa: ARG002
+    ) -> _FakeResponse:
         self.post_calls.append({"url": url, "json": json})
         return _FakeResponse(self._post_payload)
 
@@ -63,9 +85,9 @@ class _FakeSession:
 class _FakeAnthropic:
     """Anthropic stub: messages.create returns a response with fixed blocks."""
 
-    def __init__(self, blocks: list) -> None:
+    def __init__(self, blocks: list[SimpleNamespace]) -> None:
         self._blocks = blocks
-        self.calls: list[dict] = []
+        self.calls: list[dict[str, Any]] = []
         self.messages = self
 
     def create(self, **kwargs: object) -> SimpleNamespace:
@@ -77,7 +99,7 @@ def _text(s: str) -> SimpleNamespace:
     return SimpleNamespace(type="text", text=s)
 
 
-def _tool(directive: dict) -> SimpleNamespace:
+def _tool(directive: dict[str, Any]) -> SimpleNamespace:
     return SimpleNamespace(type="tool_use", name="set_player_directive", input=directive)
 
 
@@ -102,7 +124,7 @@ _SALAH_DEEP = _status_with(
 # --- coach LLM parsing ----------------------------------------------------
 
 
-def test_decide_alerts_parses_structured_json():
+def test_decide_alerts_parses_structured_json() -> None:
     """The coach's JSON reply is parsed into validated alert dicts."""
     reply = '{"alerts": [{"player_id": "salah_rw", "situation": "track back", "reasoning": "caught high"}]}'
     coach = _FakeAnthropic([_text(reply)])
@@ -110,7 +132,7 @@ def test_decide_alerts_parses_structured_json():
     assert alerts == [{"player_id": "salah_rw", "situation": "track back", "reasoning": "caught high"}]
 
 
-def test_decide_alerts_drops_unknown_ids_and_caps():
+def test_decide_alerts_drops_unknown_ids_and_caps() -> None:
     """Unknown player_ids are dropped and the list is capped at 3."""
     entries = [
         {"player_id": "salah_rw", "situation": "a", "reasoning": "r"},
@@ -125,20 +147,20 @@ def test_decide_alerts_drops_unknown_ids_and_caps():
     assert "not_a_player" not in {a["player_id"] for a in alerts}
 
 
-def test_decide_alerts_falls_back_to_heuristic_on_bad_json():
+def test_decide_alerts_falls_back_to_heuristic_on_bad_json() -> None:
     """An unparseable coach reply degrades to the zone-based heuristic."""
     coach = _FakeAnthropic([_text("sorry, no json here")])
     alerts = decide_alerts("home", _SALAH_DEEP, anthropic_client=coach)
     assert any(a["player_id"] == "salah_rw" for a in alerts)
 
 
-def test_heuristic_alerts_flags_out_of_position():
+def test_heuristic_alerts_flags_out_of_position() -> None:
     """The heuristic flags a forward stranded in the defensive third."""
     alerts = heuristic_alerts("home", _SALAH_DEEP)
     assert [a["player_id"] for a in alerts] == ["salah_rw"]
 
 
-def test_parse_player_behaviors_orders_eleven():
+def test_parse_player_behaviors_orders_eleven() -> None:
     """The narrator parser returns 11 behaviors in squad order."""
     behaviors = parse_player_behaviors(_SALAH_DEEP)
     assert len(behaviors) == 11
@@ -148,7 +170,7 @@ def test_parse_player_behaviors_orders_eleven():
 # --- player agent (mocked Anthropic + mocked HTTP) ------------------------
 
 
-def test_player_agent_override_posts_to_mcp():
+def test_player_agent_override_posts_to_mcp() -> None:
     """action='override' POSTs the directive and reports it written."""
     session = _FakeSession()
     directive = {"action": "override", "target_position": [0.6, -0.1], "duration_ticks": 120, "reasoning": "stay wide"}
@@ -168,7 +190,7 @@ def test_player_agent_override_posts_to_mcp():
     assert posted["override"]["duration_ticks"] == 120
 
 
-def test_player_agent_hold_does_not_post():
+def test_player_agent_hold_does_not_post() -> None:
     """action='hold' writes no override (no HTTP POST)."""
     session = _FakeSession()
     result = player_agent(
@@ -181,7 +203,7 @@ def test_player_agent_hold_does_not_post():
     assert session.post_calls == []
 
 
-def test_player_agent_override_without_target_downgrades_to_hold():
+def test_player_agent_override_without_target_downgrades_to_hold() -> None:
     """An override lacking a target position is treated as a safe hold."""
     session = _FakeSession()
     result = player_agent(
@@ -202,11 +224,26 @@ class _FakeMatchClient:
     def get_match_status(self, team: str) -> str:  # noqa: ARG002
         return self.status
 
-    def update_player_override(self, team: str, player_id: str, override: dict) -> dict:  # noqa: ARG002
+    # Structural MatchClient stub: args unused by the fixed-status fake.
+    def update_player_override(
+        self,
+        team: str,  # noqa: ARG002
+        player_id: str,  # noqa: ARG002
+        override: dict[str, Any],  # noqa: ARG002
+    ) -> dict[str, Any]:
         return {"status": "ok"}
 
 
-def _fake_spawn(player_id, situation, team, mcp_base_url, *, anthropic_client=None, session=None):  # noqa: ANN202, ARG001
+# Matches the player_agent spawn signature; several args are unused here.
+def _fake_spawn(
+    player_id: str,
+    situation: str,
+    team: str,  # noqa: ARG001
+    mcp_base_url: str,  # noqa: ARG001
+    *,
+    anthropic_client: object = None,  # noqa: ARG001
+    session: object = None,  # noqa: ARG001
+) -> dict[str, Any]:
     return {
         "player_id": player_id,
         "coach_reasoning": situation,
@@ -218,7 +255,7 @@ def _fake_spawn(player_id, situation, team, mcp_base_url, *, anthropic_client=No
     }
 
 
-def test_run_coach_cycle_caps_and_logs_coach_cycle(tmp_path):
+def test_run_coach_cycle_caps_and_logs_coach_cycle(tmp_path: Path) -> None:
     """One cycle alerts <=3, spawns players, and logs all 7 alert keys at the tick."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
@@ -250,7 +287,7 @@ def test_run_coach_cycle_caps_and_logs_coach_cycle(tmp_path):
         assert set(alert) == _ALERT_KEYS
 
 
-def test_run_coach_cycle_no_alerts_logs_nothing(tmp_path):
+def test_run_coach_cycle_no_alerts_logs_nothing(tmp_path: Path) -> None:
     """A cycle that produces no alerts writes no coach_cycle block."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
@@ -265,14 +302,14 @@ def test_run_coach_cycle_no_alerts_logs_nothing(tmp_path):
     assert "coach_cycle" not in json.loads(path.read_text().splitlines()[0])
 
 
-def test_roster_covers_both_teams():
+def test_roster_covers_both_teams() -> None:
     """Each team has 11 players keyed by the {name}_{role} convention."""
     assert len(players_for_team("home")) == 11
     assert len(players_for_team("away")) == 11
     assert PLAYER_PERSONALITIES["salah_rw"]["player_index"] == 9
 
 
-def test_mcp_http_client_uses_agreed_routes():
+def test_mcp_http_client_uses_agreed_routes() -> None:
     """The HTTP client hits the REST routes agreed with mcp-agent and unwraps narrator."""
     session = _FakeSession(get_payload={"narrator": "match report"})
     client = MCPHttpClient("http://sim:8765", "home-secret-abc", session=session)
