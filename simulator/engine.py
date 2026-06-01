@@ -33,7 +33,7 @@ attacking frame (the same frame the narrator presents to that team's agents).
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 
@@ -42,7 +42,17 @@ from simulator.narrator import narrate
 
 
 if TYPE_CHECKING:
-    from mcp_server.game_state import GameState
+    from collections.abc import Mapping
+
+
+class _GameStateLike(Protocol):
+    """The slice of ``mcp_server.game_state.GameState`` the engine depends on."""
+
+    def set_tick(self, tick: int) -> None: ...
+
+    def set_narrator(self, team: str, text: str) -> None: ...
+
+    def get_active_overrides(self, team: str) -> Mapping[str, Any]: ...
 
 # gfootball renders via SDL; default to the headless dummy driver but honour an
 # existing value (the Docker image sets SDL_VIDEODRIVER=dummy itself). Set before
@@ -142,7 +152,7 @@ class SoccerEngine:
         self,
         replay_path: str = "match/replay.jsonl",
         match_steps: int = FULL_MATCH_STEPS,
-        game_state: GameState | None = None,
+        game_state: _GameStateLike | None = None,
     ) -> None:
         """Create the gfootball env, replay logger, and bind the shared state.
 
@@ -174,7 +184,7 @@ class SoccerEngine:
         self.game_state = game_state
 
     @staticmethod
-    def _override_target(overrides: dict[str, Any], team_index: int) -> list[float] | None:
+    def _override_target(overrides: Mapping[str, Any], team_index: int) -> list[float] | None:
         """Extract a player's ``target_position`` from active overrides, if any.
 
         ``overrides`` is ``GAME_STATE.get_active_overrides(team)`` output: it maps
@@ -195,8 +205,8 @@ class SoccerEngine:
     def _build_actions(
         self,
         obs_list: np.ndarray,
-        home_overrides: dict[str, Any],
-        away_overrides: dict[str, Any],
+        home_overrides: Mapping[str, Any],
+        away_overrides: Mapping[str, Any],
     ) -> list[int]:
         """Compute the 22 actions for one tick from per-player observations."""
         actions: list[int] = []
@@ -241,7 +251,7 @@ class SoccerEngine:
             return [0, 0]
 
     def _publish_narration(
-        self, raw: list[dict[str, Any]] | None, score: list[int]
+        self, raw: list[dict[str, Any]] | None, score: list[int],
     ) -> None:
         """Publish per-team narrator text to the shared game state.
 

@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING, Any
 
 from replay.logger import ReplayLogger
 
 
-def _obs() -> dict:
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _obs() -> dict[str, Any]:
     """Minimal observation: 11 home + 11 away positions and a ball."""
     left = [[i * 0.01, i * 0.02] for i in range(11)]
     right = [[-i * 0.01, -i * 0.02] for i in range(11)]
     return {"left_team": left, "right_team": right, "ball": [0.5, -0.25]}
 
 
-def test_log_tick_writes_valid_json_line(tmp_path):
+def test_log_tick_writes_valid_json_line(tmp_path: Path) -> None:
     """log_tick writes one valid JSON line with 22 players, ball, and score."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
@@ -36,7 +41,7 @@ def test_log_tick_writes_valid_json_line(tmp_path):
     assert record["players"][10]["role"] == "ST"
 
 
-def test_file_and_dir_created_if_missing(tmp_path):
+def test_file_and_dir_created_if_missing(tmp_path: Path) -> None:
     """The log file and any missing parent directories are created on init."""
     path = tmp_path / "match" / "nested" / "replay.jsonl"
     assert not path.parent.exists()
@@ -46,7 +51,7 @@ def test_file_and_dir_created_if_missing(tmp_path):
     assert path.exists()
 
 
-def test_multiple_ticks_accumulate(tmp_path):
+def test_multiple_ticks_accumulate(tmp_path: Path) -> None:
     """Successive log_tick calls accumulate as ordered JSONL lines."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
@@ -62,7 +67,7 @@ def test_multiple_ticks_accumulate(tmp_path):
         assert record["score"] == [tick, 0]
 
 
-def test_log_coach_cycle_embeds_into_last_tick(tmp_path):
+def test_log_coach_cycle_embeds_into_last_tick(tmp_path: Path) -> None:
     """log_coach_cycle embeds a coach_cycle block into the most recent tick."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
@@ -93,7 +98,7 @@ def test_log_coach_cycle_embeds_into_last_tick(tmp_path):
     assert last["coach_cycle"][0]["alerts"] == alerts
 
 
-def test_log_tick_after_coach_cycle_appends_correctly(tmp_path):
+def test_log_tick_after_coach_cycle_appends_correctly(tmp_path: Path) -> None:
     """Appending continues correctly after an atomic coach-cycle rewrite."""
     path = tmp_path / "match" / "replay.jsonl"
     logger = ReplayLogger(str(path))
@@ -108,7 +113,7 @@ def test_log_tick_after_coach_cycle_appends_correctly(tmp_path):
     assert json.loads(lines[1])["tick"] == 1
 
 
-def test_log_coach_cycle_targets_matching_tick_not_last_line(tmp_path):
+def test_log_coach_cycle_targets_matching_tick_not_last_line(tmp_path: Path) -> None:
     """A late cycle for an older tick lands on that tick's line, not the newest.
 
     Mirrors the real race: the simulator writes newer ticks while the coach is

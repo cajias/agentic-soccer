@@ -17,11 +17,16 @@ import json
 import socket
 import threading
 import time
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 from starlette.testclient import TestClient
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 from mcp_server import server
 from mcp_server.server import (
@@ -38,7 +43,7 @@ from mcp_server.server import (
 HOME_TOKEN = "home-secret-abc"  # noqa: S105
 AWAY_TOKEN = "away-secret-xyz"  # noqa: S105
 
-SAMPLE_OVERRIDE = {
+SAMPLE_OVERRIDE: dict[str, Any] = {
     "target_position": [0.5, 0.0],
     "duration_ticks": 10,
     "reasoning": "push up the right wing",
@@ -46,7 +51,7 @@ SAMPLE_OVERRIDE = {
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def reset_state() -> Iterator[None]:
     """Reset the shared singleton before and after every test."""
     GAME_STATE.reset()
     yield
@@ -56,13 +61,13 @@ def reset_state():
 # -- required behaviors ----------------------------------------------------
 
 
-def test_get_match_status_returns_narrator_text():
+def test_get_match_status_returns_narrator_text() -> None:
     """get_match_status returns the narrator text set for the team."""
     GAME_STATE.set_narrator("home", "Home presses high after kickoff.")
     assert get_match_status("home", token=HOME_TOKEN) == "Home presses high after kickoff."
 
 
-def test_update_player_override_rejects_wrong_team_token():
+def test_update_player_override_rejects_wrong_team_token() -> None:
     """A write with another team's token is rejected and leaves state untouched."""
     with pytest.raises(AuthError):
         update_player_override("home", "7", SAMPLE_OVERRIDE, token=AWAY_TOKEN)
@@ -70,7 +75,7 @@ def test_update_player_override_rejects_wrong_team_token():
     assert GAME_STATE.player_overrides["home"] == {}
 
 
-def test_get_player_overrides_excludes_and_removes_expired():
+def test_get_player_overrides_excludes_and_removes_expired() -> None:
     """Expired overrides are excluded from the result and deleted from state."""
     update_player_override("home", "7", SAMPLE_OVERRIDE, token=HOME_TOKEN)
     # Still active at tick 0.
@@ -78,14 +83,14 @@ def test_get_player_overrides_excludes_and_removes_expired():
     assert "7" in active
 
     # Advance the clock past duration_ticks -> override expires.
-    GAME_STATE.set_tick(SAMPLE_OVERRIDE["duration_ticks"])
+    GAME_STATE.set_tick(int(SAMPLE_OVERRIDE["duration_ticks"]))
     active = get_player_overrides("home", token=HOME_TOKEN)["overrides"]
     assert "7" not in active
     # Auto-removed from state, not merely filtered from the return value.
     assert "7" not in GAME_STATE.player_overrides["home"]
 
 
-def test_clear_player_override_removes_override():
+def test_clear_player_override_removes_override() -> None:
     """clear_player_override deletes the override and confirms the removal."""
     update_player_override("home", "9", SAMPLE_OVERRIDE, token=HOME_TOKEN)
     assert "9" in GAME_STATE.player_overrides["home"]
@@ -102,7 +107,7 @@ def test_clear_player_override_removes_override():
 # -- auth edge cases -------------------------------------------------------
 
 
-def test_missing_and_invalid_tokens_rejected():
+def test_missing_and_invalid_tokens_rejected() -> None:
     """Missing or unrecognized tokens are rejected."""
     with pytest.raises(AuthError):
         get_match_status("home", token=None)
@@ -110,7 +115,7 @@ def test_missing_and_invalid_tokens_rejected():
         get_match_status("home", token="not-a-real-token")  # noqa: S106
 
 
-def test_get_match_status_validates_team_token():
+def test_get_match_status_validates_team_token() -> None:
     """A valid token for one team cannot read another team's status."""
     with pytest.raises(AuthError):
         get_match_status("home", token=AWAY_TOKEN)
@@ -119,7 +124,7 @@ def test_get_match_status_validates_team_token():
 # -- through the MCP layer (registration + serialization) ------------------
 
 
-def test_tools_callable_through_in_memory_client():
+def test_tools_callable_through_in_memory_client() -> None:
     """Tools are registered and callable through the MCP layer end to end."""
     GAME_STATE.set_narrator("away", "Away sits deep and counters.")
 
@@ -173,15 +178,15 @@ def _free_port() -> int:
     """Return an OS-assigned free TCP port on the loopback interface."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
+        return int(sock.getsockname()[1])
 
 
-def test_default_port_is_8765():
+def test_default_port_is_8765() -> None:
     """The default bind port stays 8765 (the contract the Docker host maps)."""
     assert PORT == 8765
 
 
-def test_http_transport_honors_host_and_port_env(monkeypatch):
+def test_http_transport_honors_host_and_port_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """``main()`` binds the host/port from MCP_HOST/MCP_PORT env overrides.
 
     Uses 127.0.0.1 + a free ephemeral port so the test never collides with a
@@ -233,13 +238,13 @@ def _bearer(token: str) -> dict[str, str]:
 
 
 @pytest.fixture
-def rest_client():
+def rest_client() -> Iterator[TestClient]:
     """A Starlette TestClient over the server's real ASGI app (runs lifespan)."""
     with TestClient(server.mcp.http_app()) as client:
         yield client
 
 
-def test_rest_status_enforces_token_and_team(rest_client):
+def test_rest_status_enforces_token_and_team(rest_client: TestClient) -> None:
     """GET status: tokenless and mismatched-token reads are rejected; match works."""
     GAME_STATE.set_narrator("home", "Home builds patiently from the back.")
     GAME_STATE.set_score([2, 1])
@@ -263,7 +268,7 @@ def test_rest_status_enforces_token_and_team(rest_client):
     assert alias.json()["narrator"] == "Home builds patiently from the back."
 
 
-def test_rest_update_override_writes_and_scopes(rest_client):
+def test_rest_update_override_writes_and_scopes(rest_client: TestClient) -> None:
     """POST override: matching token persists to GAME_STATE; mismatch is rejected and leaves state untouched."""
     ok = rest_client.post(
         "/update_player_override",
@@ -293,7 +298,7 @@ def test_rest_update_override_writes_and_scopes(rest_client):
     assert "9" not in GAME_STATE.player_overrides["home"]
 
 
-def test_rest_get_and_clear_overrides(rest_client):
+def test_rest_get_and_clear_overrides(rest_client: TestClient) -> None:
     """GET overrides returns active entries; POST clear removes one — both token-scoped."""
     rest_client.post(
         "/update_player_override",

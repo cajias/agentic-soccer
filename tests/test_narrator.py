@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from simulator.narrator import GAME_MODES, Narrator, narrate
@@ -41,7 +43,7 @@ _AWAY = [
 _STILL = [[0.0, 0.0] for _ in range(11)]
 
 
-def _base_obs(**overrides: object) -> dict:
+def _base_obs(**overrides: object) -> dict[str, Any]:
     """A normal-play observation; override any field via kwargs."""
     obs = {
         "left_team": [list(p) for p in _HOME],
@@ -59,7 +61,7 @@ def _base_obs(**overrides: object) -> dict:
     return obs
 
 
-def test_kickoff_contains_expected_phrases():
+def test_kickoff_contains_expected_phrases() -> None:
     """Kickoff renders the clock, score, mode label and every role."""
     obs = _base_obs(game_mode=1, steps_remaining=3000)
     report = narrate(obs, team="home")
@@ -73,7 +75,7 @@ def test_kickoff_contains_expected_phrases():
         assert role in report
 
 
-def test_normal_play_with_home_possession():
+def test_normal_play_with_home_possession() -> None:
     """Home possession names the carrier, zone and on-the-ball phrase."""
     # Home ST carries the ball in the attacking third.
     obs = _base_obs(
@@ -94,7 +96,7 @@ def test_normal_play_with_home_possession():
     assert "on the ball" in report
 
 
-def test_contested_loose_ball():
+def test_contested_loose_ball() -> None:
     """An unowned ball reads as contested with a loose-ball note."""
     obs = _base_obs(ball=[0.0, 0.0, 0.0], ball_owned_team=-1)
     report = narrate(obs, team="home")
@@ -102,7 +104,7 @@ def test_contested_loose_ball():
     assert "loose ball" in report
 
 
-def test_corner_kick_phrases():
+def test_corner_kick_phrases() -> None:
     """A corner game mode surfaces the set-piece line."""
     # Ball deep in the opposition corner; away has a corner against home? No --
     # narrate from home view, ball near opposition goal line corner.
@@ -118,7 +120,7 @@ def test_corner_kick_phrases():
     assert "POSSESSION: Home" in report
 
 
-def test_goal_kick_phrases():
+def test_goal_kick_phrases() -> None:
     """A goal kick puts the GK on the ball in their own box."""
     obs = _base_obs(
         game_mode=2,
@@ -134,7 +136,7 @@ def test_goal_kick_phrases():
     assert "own penalty area" in report
 
 
-def test_away_perspective_mirrors_zones():
+def test_away_perspective_mirrors_zones() -> None:
     """The away view mirrors zones relative to the home view."""
     # Ball at x=+0.9 is the home attacking end == the away defensive end.
     obs = _base_obs(
@@ -153,7 +155,7 @@ def test_away_perspective_mirrors_zones():
     assert "own penalty area" in away_report
 
 
-def test_pressure_description_changes_with_opponents():
+def test_pressure_description_changes_with_opponents() -> None:
     """Many opponents deep in our third trigger the heavy-pressure read."""
     # Push five away players deep into the home defensive third.
     away = [list(p) for p in _AWAY]
@@ -164,19 +166,19 @@ def test_pressure_description_changes_with_opponents():
     assert "Heavy pressure" in report
 
 
-def test_narrator_class_binds_team():
+def test_narrator_class_binds_team() -> None:
     """The Narrator class produces the same output as the bound function call."""
     obs = _base_obs()
     assert narrate(obs, "away") == Narrator("away").narrate(obs)
 
 
-def test_invalid_team_raises():
+def test_invalid_team_raises() -> None:
     """An unknown team perspective raises ValueError."""
     with pytest.raises(ValueError, match="team must be one of"):
         narrate(_base_obs(), team="sideline")
 
 
-def test_all_game_modes_render_without_error():
+def test_all_game_modes_render_without_error() -> None:
     """Every supported game mode renders a report without raising."""
     for mode in GAME_MODES:
         report = narrate(_base_obs(game_mode=mode), team="home")

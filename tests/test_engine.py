@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import sys
 import types
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
@@ -23,10 +24,14 @@ from simulator.engine import (
 )
 
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------
-def _raw_obs(score: list[int]) -> dict:
+def _raw_obs(score: list[int]) -> dict[str, Any]:
     """A minimal gfootball-style raw observation the narrator can consume."""
     return {
         "left_team": np.zeros((11, 2), dtype=np.float32),
@@ -44,7 +49,7 @@ class _FakeUnwrapped:
     def __init__(self, env: _FakeEnv) -> None:
         self._env = env
 
-    def observation(self) -> list[dict]:
+    def observation(self) -> list[dict[str, Any]]:
         # 22 controlled players; only index 0 (absolute home frame) is read.
         return [_raw_obs(self._env.score) for _ in range(22)]
 
@@ -85,7 +90,7 @@ class _FakeEnv:
 class _FakeGameState:
     """Records tick/narrator writes and serves seeded per-team overrides."""
 
-    def __init__(self, overrides: dict[str, dict] | None = None) -> None:
+    def __init__(self, overrides: dict[str, dict[str, Any]] | None = None) -> None:
         self._overrides = overrides or {"home": {}, "away": {}}
         self.tick = 0
         self.narrator: dict[str, str] = {"home": "", "away": ""}
@@ -95,14 +100,14 @@ class _FakeGameState:
         self.tick = tick
         self.tick_history.append(tick)
 
-    def get_active_overrides(self, team: str) -> dict[str, dict]:
+    def get_active_overrides(self, team: str) -> dict[str, dict[str, Any]]:
         return self._overrides.get(team, {})
 
     def set_narrator(self, team: str, text: str) -> None:
         self.narrator[team] = text
 
 
-def _install_fake_gfootball(monkeypatch, env: _FakeEnv) -> None:
+def _install_fake_gfootball(monkeypatch: pytest.MonkeyPatch, env: _FakeEnv) -> None:
     """Inject a fake ``gfootball.env`` module returning ``env``."""
     fake_env_mod = types.ModuleType("gfootball.env")
     fake_env_mod.create_environment = lambda **_kwargs: env  # type: ignore[attr-defined]
@@ -112,7 +117,7 @@ def _install_fake_gfootball(monkeypatch, env: _FakeEnv) -> None:
     monkeypatch.setitem(sys.modules, "gfootball.env", fake_env_mod)
 
 
-def _override_record(target: list[float], duration: int = 0) -> dict:
+def _override_record(target: list[float], duration: int = 0) -> dict[str, Any]:
     """Shape a GAME_STATE override record as the MCP server stores it."""
     return {
         "player_id": "0",
@@ -139,18 +144,18 @@ def _override_record(target: list[float], duration: int = 0) -> dict:
         (0, 0, 0),  # IDLE (dead zone)
     ],
 )
-def test_direction_action(dx, dy, expected):
+def test_direction_action(dx: int, dy: int, expected: int) -> None:
     """Cardinal/diagonal deltas map to the expected gfootball action ids."""
     assert _direction_action(dx, dy) == expected
 
 
-def test_default_action_goalkeeper_holds_line():
+def test_default_action_goalkeeper_holds_line() -> None:
     """The goalkeeper heuristic never sends the keeper further upfield."""
     # GK far from its goal line (own goal at x=-1) should not run further upfield.
     assert default_action(0, np.array([0.0, 0.0]), np.array([0.0, 0.0])) != RIGHT
 
 
-def test_default_action_returns_valid_action():
+def test_default_action_returns_valid_action() -> None:
     """Every role's heuristic returns a valid gfootball action id (0-18)."""
     for idx in range(11):
         action = default_action(idx, np.array([0.1, 0.0]), np.array([0.3, 0.2]))
@@ -160,7 +165,7 @@ def test_default_action_returns_valid_action():
 # ---------------------------------------------------------------------------
 # Full run
 # ---------------------------------------------------------------------------
-def test_engine_runs_short_match(tmp_path, monkeypatch):
+def test_engine_runs_short_match(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A short match advances ticks, scores, narrates, and writes a replay."""
     env = _FakeEnv()
     _install_fake_gfootball(monkeypatch, env)
@@ -192,7 +197,7 @@ def test_engine_runs_short_match(tmp_path, monkeypatch):
     assert json.loads(lines[-1])["score"] == [1, 0]
 
 
-def test_override_steers_player(tmp_path, monkeypatch):
+def test_override_steers_player(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An active target_position override steers the player toward the target."""
     env = _FakeEnv()
     _install_fake_gfootball(monkeypatch, env)
@@ -206,7 +211,7 @@ def test_override_steers_player(tmp_path, monkeypatch):
     assert env.last_actions[0] == RIGHT
 
 
-def test_override_expiry_handled_by_game_state(tmp_path, monkeypatch):
+def test_override_expiry_handled_by_game_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An empty active-override set falls back to heuristics (no crash)."""
     env = _FakeEnv()
     _install_fake_gfootball(monkeypatch, env)
