@@ -13,7 +13,7 @@ import pytest
 
 import agents.coach_loop as coach_loop_module
 import check_milestones
-import team_loop
+from agents import coach_session
 
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 def test_run_coach_rejects_unknown_team() -> None:
     """run_coach raises ValueError for a team name that is not home/away."""
     with pytest.raises(ValueError, match="unknown team"):
-        team_loop.run_coach("midfield")
+        coach_session.run_coach("midfield")
 
 
 def test_run_coach_valid_team_invokes_coach_loop(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -40,7 +40,7 @@ def test_run_coach_valid_team_invokes_coach_loop(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(coach_loop_module, "coach_loop", fake_coach_loop)
 
-    team_loop.run_coach("home", max_cycles=0)
+    coach_session.run_coach("home", max_cycles=0)
 
     assert len(calls) == 1
     assert calls[0]["team"] == "home"
@@ -51,7 +51,7 @@ def test_run_coach_valid_team_invokes_coach_loop(monkeypatch: pytest.MonkeyPatch
 
 def test_team_loop_token_map_matches_known_teams() -> None:
     """The auth token map is keyed by exactly the known teams."""
-    assert set(team_loop.TOKENS) == {"home", "away"}
+    assert set(coach_session.TOKENS) == {"home", "away"}
 
 
 def test_check_milestones_all_defensive_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

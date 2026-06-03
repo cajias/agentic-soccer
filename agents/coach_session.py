@@ -1,11 +1,10 @@
 """Coach session entry point: run one team's heuristic coach loop.
 
 A coach reads its team's narrator text, flags out-of-position players, and posts
-behaviour overrides through the MCP layer. :func:`run_coach` is reusable:
-``simulator.py`` launches both coaches in-process (sharing the engine's replay
-logger and the live tick), and it can also be run directly for a single team::
+behaviour overrides through the MCP layer. :func:`run_coach` is reusable and can
+be run directly for a single team::
 
-    python team_loop.py home
+    python -m agents.coach_session home
 
 Delegates to :func:`agents.coach_loop.coach_loop`, which builds an HTTP-backed
 ``MCPHttpClient`` for the team and drives one ``run_coach_cycle`` per pass. The
