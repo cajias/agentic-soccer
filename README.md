@@ -2,6 +2,12 @@
 
 **AI agents coach a real 11v11 football match — then you watch it back in retro 16-bit.**
 
+<p align="center">
+  <img src="docs/agentic-soccer-coached.gif" width="640" alt="Two Claude coaches steer a live gfootball match, replayed in the 16-bit Goal!-style viewer with COACH override banners">
+</p>
+
+<p align="center"><em>Two Claude Code coaches steering a live gfootball match — the ⚡COACH banner flashes on every override.</em></p>
+
 `agentic-soccer` runs an actual [gfootball](https://github.com/google-research/football)
 (Google Research Football) match — the real C++ engine, headless, in Docker. A
 [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server exposes live match
@@ -97,6 +103,44 @@ Playback controls: **SPACE** pause/resume · **←/→** step frames · **+/-** 
 Pitch coordinates: `x ∈ [-1, 1]` (x=-1 home goal line, x=+1 away goal line),
 `y ∈ [-0.42, 0.42]`. Generated sprite assets live under `src/agentic_soccer/replay/assets/sprites/` and are
 checked in (the viewer needs them).
+
+## Record a GIF
+
+No display? Render a replay to a GIF headlessly (the demo above was made this way).
+`scripts/capture_gif.py` dumps every Nth frame via the visualizer's `render_frame`
+seam under SDL's dummy driver — and holds each ⚡COACH banner for a few frames so
+sparse overrides stay visible. Run it **in the container** (pygame + assets live
+there), then assemble with `ffmpeg` on the host:
+
+```bash
+# 1. dump frames (every 8th tick) from a replay
+docker compose run --rm \
+  -v "$(pwd)/match:/app/match" -v "$(pwd)/scripts:/app/scripts" \
+  soccer python scripts/capture_gif.py match/replay.jsonl match/frames 8
+
+# 2. assemble a GIF (two-pass palette for clean colour)
+ffmpeg -y -framerate 20 -i match/frames/frame_%05d.png \
+  -vf "fps=20,scale=600:-1:flags=lanczos,palettegen=stats_mode=diff" match/palette.png
+ffmpeg -y -framerate 20 -i match/frames/frame_%05d.png -i match/palette.png \
+  -lavfi "fps=20,scale=600:-1:flags=lanczos[x];[x][1:v]paletteuse" match/match.gif
+```
+
+## Pacing the match for live coaches
+
+The engine runs as fast as the host allows, which is too quick for live coaches to
+react. Set **`TICK_DELAY`** (seconds per tick) to stretch the match to a human
+cadence — e.g. `TICK_DELAY=0.05` makes a full 90′ take a couple of minutes, leaving
+room for both coaches to run several read→decide→override cycles. Default `0`
+preserves the original run-as-fast-as-possible behaviour.
+
+```bash
+docker run --rm -p 8765:8765 -v "$(pwd)/match:/app/match" \
+  -e SDL_VIDEODRIVER=dummy -e MCP_HOST=0.0.0.0 -e TICK_DELAY=0.05 \
+  agentic-soccer:latest python -m agentic_soccer.entrypoints.docker_entry
+```
+
+The per-team coach configs `.mcp.home.json` / `.mcp.away.json` scope each Claude Code
+session to a single side (so a coach only sees its own tools).
 
 ## The five milestones
 
