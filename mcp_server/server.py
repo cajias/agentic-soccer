@@ -21,6 +21,7 @@ Run with::
 from __future__ import annotations
 
 import os
+import secrets
 from typing import TYPE_CHECKING, Any
 
 from fastmcp import FastMCP
@@ -147,7 +148,7 @@ def _require_team(team: str, token: str | None) -> str:
     if resolved is None:
         msg = "invalid team token"
         raise AuthError(msg, status=401)
-    if resolved != team:
+    if not secrets.compare_digest(resolved, team):
         msg = f"token authorizes team {resolved!r}, not {team!r}"
         raise AuthError(msg, status=403)
     return resolved
