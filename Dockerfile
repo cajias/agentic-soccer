@@ -97,7 +97,7 @@ COPY mcp_server/ ./mcp_server/
 COPY agents/ ./agents/
 COPY replay/ ./replay/
 COPY tests/ ./tests/
-COPY check_milestones.py main.py docker_entry.py run_milestones.py ./
+COPY check_milestones.py docker_entry.py run_milestones.py ./
 RUN mkdir -p /app/match
 
 EXPOSE 8765
