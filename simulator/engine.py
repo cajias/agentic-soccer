@@ -291,28 +291,32 @@ class SoccerEngine:
     def run(self) -> dict[str, Any]:
         """Run a full match, logging every tick. Returns final stats."""
         gs = self.game_state
-        obs_list = self.env.reset()
-        done = False
+        try:
+            obs_list = self.env.reset()
+            done = False
 
-        while not done and self.tick < self.match_steps:
+            while not done and self.tick < self.match_steps:
+                gs.set_tick(self.tick)
+                home_overrides = gs.get_active_overrides("home")
+                away_overrides = gs.get_active_overrides("away")
+
+                actions = self._build_actions(obs_list, home_overrides, away_overrides)
+                obs_list, _reward, done_flag, _info = self.env.step(actions)
+                done = self._is_done(done_flag)
+
+                raw = self._raw_observation()
+                score = self._score_from_raw(raw)
+                self._publish_narration(raw, score)
+                self._log_tick(obs_list, score)
+                self.tick += 1
+
             gs.set_tick(self.tick)
-            home_overrides = gs.get_active_overrides("home")
-            away_overrides = gs.get_active_overrides("away")
-
-            actions = self._build_actions(obs_list, home_overrides, away_overrides)
-            obs_list, _reward, done_flag, _info = self.env.step(actions)
-            done = self._is_done(done_flag)
-
-            raw = self._raw_observation()
-            score = self._score_from_raw(raw)
-            self._publish_narration(raw, score)
-            self._log_tick(obs_list, score)
-            self.tick += 1
-
-        gs.set_tick(self.tick)
-        final_score = self._score_from_raw(self._raw_observation())
-        self.logger.close()
-        self.env.close()
+            final_score = self._score_from_raw(self._raw_observation())
+        finally:
+            # Always release the gfootball env and flush/close the replay file,
+            # even if the match loop raises mid-game.
+            self.logger.close()
+            self.env.close()
 
         print(f"Match complete: Home {final_score[0]} - {final_score[1]} Away ({self.tick} ticks)")
         return {
