@@ -22,23 +22,31 @@ angled, skewed-perspective 16-bit look from the Super Famicom era.
 
 ## Architecture
 
-```
-  ┌──────────────────────────── Docker container ────────────────────────────┐
-  │                                                                            │
-  │   gfootball engine (C++, headless)  ──►  GAME_STATE  ◄──  FastMCP server   │
-  │        real 11v11 match loop          (shared in-proc)     (HTTP :8765)    │
-  │                  │                                              ▲          │
-  │                  ▼                                              │ tools    │
-  │          match/replay.jsonl  ◄── coach overrides logged        │ (token-   │
-  │                  │              as "coach_cycle" entries        │  authed)  │
-  └──────────────────┼─────────────────────────────────────────────┼──────────┘
-                     │ (volume mount)                               │ .mcp.json
-                     ▼                                              │
-        ┌──────────────────────┐              ┌────────────────────┴───────────┐
-        │  replay/visualizer.py │              │  Claude Code CLI × 2            │
-        │  pygame "Goal!" view  │              │  home coach  │  away coach      │
-        │  (runs on the host)   │              │  (soccer-coach skill)          │
-        └──────────────────────┘              └────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph container["🐳 Docker container"]
+        engine["gfootball engine (C++, headless)<br/>real 11v11 match loop"]
+        state[("GAME_STATE<br/>shared in-process")]
+        mcp["FastMCP server<br/>HTTP :8765 · token-authed tools"]
+        engine -->|mutates| state
+        state <-->|read / write| mcp
+        engine -->|logs coach overrides as<br/>'coach_cycle' entries| replay[["match/replay.jsonl"]]
+    end
+
+    subgraph host["💻 Host"]
+        viewer["replay/visualizer.py<br/>pygame 'Goal!' view"]
+        homeCoach["Claude Code CLI<br/>home coach"]
+        awayCoach["Claude Code CLI<br/>away coach"]
+    end
+
+    replay -->|volume mount| viewer
+    homeCoach -->|.mcp.json · home token| mcp
+    awayCoach -->|.mcp.json · away token| mcp
+
+    style container fill:#1d3b16,stroke:#3a8a2a,color:#eee
+    style host fill:#15233a,stroke:#2a5a8a,color:#eee
+    style state fill:#3a2a16,stroke:#8a6a2a,color:#eee
+    style replay fill:#2a2a2a,stroke:#888,color:#eee
 ```
 
 - **Simulator + MCP server** run together in one Docker process because they share the
