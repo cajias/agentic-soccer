@@ -1,7 +1,11 @@
 .worktrees/
+.venv/
 match/*.jsonl
 __pycache__/
 *.pyc
+
+# Third-party art-direction reference (Jaleco "Goal!" screenshot) — not redistributable
+docs/superpowers/specs/goal-reference.jpg
 
 # Scratch build/verify logs from the gfootball Docker bring-up
 build_*.txt

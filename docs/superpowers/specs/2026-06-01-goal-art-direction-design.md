@@ -2,7 +2,12 @@
 
 **Date:** 2026-06-01
 **Status:** Approved
-**Reference:** `docs/superpowers/specs/goal-reference.jpg` (Jaleco *Goal!*, Super Famicom)
+**Reference:** Jaleco's *Goal!* (Super Famicom, 1992) — the angled "16-bit" whole-pitch
+view with a steep skewed perspective, large shaded player sprites, detailed goal nets, a
+bright mown pitch, a bottom HUD, and an active-player marker. See, e.g., the
+[MobyGames entry for *Goal!*](https://www.mobygames.com/game/goal/) for screenshots. The
+original screenshot is third-party copyrighted material and is intentionally **not** checked
+into this repository.
 
 ## Goal
 
