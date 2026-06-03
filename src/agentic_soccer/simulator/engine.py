@@ -33,6 +33,7 @@ attacking frame (the same frame the narrator presents to that team's agents).
 from __future__ import annotations
 
 import os
+import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
@@ -291,11 +292,19 @@ class SoccerEngine:
     def run(self) -> dict[str, Any]:
         """Run a full match, logging every tick. Returns final stats."""
         gs = self.game_state
+        # Optional per-tick delay (seconds) so live coaches have time to react.
+        # Default 0 preserves the original run-as-fast-as-possible behaviour.
+        try:
+            tick_delay = float(os.environ.get("TICK_DELAY", "0") or 0)
+        except ValueError:
+            tick_delay = 0.0
         try:
             obs_list = self.env.reset()
             done = False
 
             while not done and self.tick < self.match_steps:
+                if tick_delay > 0:
+                    time.sleep(tick_delay)
                 gs.set_tick(self.tick)
                 home_overrides = gs.get_active_overrides("home")
                 away_overrides = gs.get_active_overrides("away")
