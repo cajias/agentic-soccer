@@ -4,18 +4,11 @@ Both must live in ONE process because they share the in-process
 ``mcp_server.server.GAME_STATE`` (per the MCP-server contract). The FastMCP
 HTTP server runs in a daemon thread on port 8765; the match loop runs in the
 main thread and mutates GAME_STATE, which the MCP tools read.
-
-This wiring depends on the final APIs of the MCP server (task #3) and the
-simulator (task #5). It is written defensively: each integration point is
-resolved at runtime so the container still builds and the failure mode is a
-clear message rather than an import-time crash. Adjust the marked call sites
-once those modules land.
 """
 
 from __future__ import annotations
 
 import os
-import sys
 import threading
 import time
 
@@ -46,46 +39,17 @@ def _run_match() -> int:
 
     The engine reads coach overrides via the SAME in-process
     ``mcp_server.server.GAME_STATE`` singleton the FastMCP server mutates — that
-    shared object is the whole reason server + match run in one process. The
-    contract (see check_milestones.py and team-lead) is
-    ``from simulator.engine import SoccerEngine; SoccerEngine().run()``; we honor
-    that first, then fall back to module-level entries, then degrade gracefully.
+    shared object is the whole reason server + match run in one process.
     """
-    from simulator import engine  # noqa: PLC0415
+    from mcp_server.server import set_replay_logger  # noqa: PLC0415
+    from simulator.engine import SoccerEngine  # noqa: PLC0415
 
-    # Preferred: the SoccerEngine class (the documented integration contract).
-    soccer_engine = getattr(engine, "SoccerEngine", None)
-    if soccer_engine is not None:
-        instance = soccer_engine()
-        # Share the engine's replay logger with the MCP server so every override
-        # write records a coach_cycle into the same replay.jsonl.
-        logger = getattr(instance, "logger", None)
-        if logger is not None:
-            from mcp_server.server import set_replay_logger  # noqa: PLC0415
-
-            set_replay_logger(logger)
-        for run_name in ("run", "run_match", "play", "main"):
-            run = getattr(instance, run_name, None)
-            if callable(run):
-                run()
-                return 0
-
-    # Fallback: a module-level runnable entry.
-    for entry in ("run_match", "main", "run"):
-        fn = getattr(engine, entry, None)
-        if callable(fn):
-            fn()
-            return 0
-
-    sys.stderr.write(
-        "docker_entry: simulator.engine exposes no SoccerEngine().run() or "
-        "module run_match/main/run yet (task #5 stub). MCP server is up on "
-        ":8765; holding so the container stays useful.\n",
-    )
-    sys.stderr.flush()
-    # Keep the server alive so the container stays useful while the sim lands.
-    while True:
-        time.sleep(3600)
+    engine = SoccerEngine()
+    # Share the engine's replay logger with the MCP server so every override
+    # write records a coach_cycle into the same replay.jsonl.
+    set_replay_logger(engine.logger)
+    engine.run()
+    return 0
 
 
 def main() -> int:

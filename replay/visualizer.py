@@ -562,19 +562,6 @@ def draw_pitch(surface: pygame.Surface) -> None:
         _draw_goal_net(surface, sign)
 
 
-# Backwards-compatible alias kept for any external callers / tests.
-def _draw_pitch(surface: pygame.Surface) -> None:
-    """Compatibility wrapper around :func:`draw_pitch`."""
-    draw_pitch(surface)
-
-
-def _draw_boxes(surface: pygame.Surface) -> None:
-    """Compatibility wrapper drawing both penalty boxes and goals."""
-    for sign in (-1.0, 1.0):
-        _draw_box(surface, sign)
-        _draw_goal_net(surface, sign)
-
-
 # --- Player / ball drawing ---------------------------------------------------
 def _shadow_ellipse(surface: pygame.Surface, cx: float, cy: float, depth: float) -> None:
     """Draw a soft translucent ground-shadow ellipse centred at ``(cx, cy)``."""
