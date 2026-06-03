@@ -863,6 +863,29 @@ def _draw_bubble(surface: pygame.Surface, font: pygame.font.Font, player: Player
 
 
 # --- Headless single-frame render -------------------------------------------
+def _compose(
+    surface: pygame.Surface,
+    frame: Frame,
+    ctx: _AnimContext,
+    cycles: list[CoachCycle],
+    *,
+    speed: float,
+) -> None:
+    """Draw one full scene: pitch, players, ball, active marker, HUD, overlay.
+
+    Shared by the headless :func:`render_frame` seam and the interactive
+    :func:`_render_live` loop. Callers build ``ctx`` (animation context) and
+    decide which ``cycles`` to overlay; the draw order is identical in both.
+    """
+    draw_pitch(surface)
+    draw_players(surface, ctx)
+    draw_ball(surface, frame, ctx.assets)
+    draw_active_marker(surface, _active_player(frame, ctx.glow_ids), ctx.assets)
+    draw_hud(surface, frame, ctx.assets, speed)
+    if cycles:
+        draw_coach_overlay(surface, frame, cycles, ctx.assets)
+
+
 def render_frame(
     surface: pygame.Surface,
     frames: list[Frame],
@@ -902,13 +925,7 @@ def render_frame(
         if _alert_matches_player(a, p)
     }
     ctx = _AnimContext(frame=frame, prev=prev, tick=frame.tick, assets=assets, glow_ids=glow_ids)
-    draw_pitch(surface)
-    draw_players(surface, ctx)
-    draw_ball(surface, frame, assets)
-    draw_active_marker(surface, _active_player(frame, glow_ids), assets)
-    draw_hud(surface, frame, assets, speed)
-    if frame.coach_cycles:
-        draw_coach_overlay(surface, frame, frame.coach_cycles, assets)
+    _compose(surface, frame, ctx, frame.coach_cycles, speed=speed)
 
 
 # --- Interactive playback ----------------------------------------------------
@@ -987,14 +1004,8 @@ def _render_live(surface: pygame.Surface, frames: list[Frame], state: _Playback,
     prev = frames[state.index - 1] if state.index > 0 else None
     glow_ids = _glow_ids(state, frame)
     ctx = _AnimContext(frame=frame, prev=prev, tick=frame.tick, assets=assets, glow_ids=glow_ids)
-    draw_pitch(surface)
-    draw_players(surface, ctx)
-    draw_ball(surface, frame, assets)
-    draw_active_marker(surface, _active_player(frame, glow_ids), assets)
-    draw_hud(surface, frame, assets, SPEEDS[state.speed_idx])
     cycles = _coach_cycles_for(state, frame)
-    if cycles:
-        draw_coach_overlay(surface, frame, cycles, assets)
+    _compose(surface, frame, ctx, cycles, speed=SPEEDS[state.speed_idx])
     if state.banner_left > 0:
         state.banner_left -= 1
 
