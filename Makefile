@@ -29,7 +29,7 @@ typecheck:
 # real integration gate — it requires the image to be built first
 # (see Dockerfile / run_docker.sh / build_docker.txt).
 e2e-docker:
-	docker compose run --rm sim python run_milestones.py
+	docker compose run --rm soccer python run_milestones.py
 
 # Replay a recorded match in the pygame viewer (needs a display).
 replay:
