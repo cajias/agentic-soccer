@@ -10,7 +10,7 @@ logger share state:
 3. A scripted ``update_player_override`` fires mid-match — no LLM/SDK — which
    makes the server record a ``coach_cycle`` block into ``match/replay.jsonl``
    (satisfies M3).
-4. ``check_milestones.py`` runs as a subprocess (a fresh process for its own M1
+4. ``entrypoints.check_milestones`` runs as a subprocess (a fresh process for its own M1
    gfootball env; M2/M4 reach the still-running server over HTTP; M3/M5 read the
    replay file). Its final ``0-5`` line is the result.
 
@@ -18,7 +18,7 @@ Run in-container::
 
     docker run --rm -e SDL_VIDEODRIVER=dummy -e SDL_AUDIODRIVER=dummy \\
         -e MCP_HOST=0.0.0.0 -v "$PWD/match:/app/match" \\
-        agentic-soccer:latest python run_milestones.py
+        agentic-soccer:latest python -m entrypoints.run_milestones
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ def main() -> int:
     # check_milestones in a fresh process: its M1 gets a clean gfootball env, while
     # M2/M4 reach the still-running server (daemon thread in THIS process) over HTTP.
     result = subprocess.run(
-        [sys.executable, "check_milestones.py"],
+        [sys.executable, "-m", "entrypoints.check_milestones"],
         capture_output=True,
         text=True,
         check=False,

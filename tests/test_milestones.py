@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-import check_milestones as cm
+from entrypoints import check_milestones as cm
 
 
 if TYPE_CHECKING:

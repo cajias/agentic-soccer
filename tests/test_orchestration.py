@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import agents.coach_loop as coach_loop_module
-import check_milestones
 from agents import coach_session
+from entrypoints import check_milestones
 
 
 if TYPE_CHECKING:

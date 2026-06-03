@@ -100,8 +100,8 @@ checked in (the viewer needs them).
 
 ## The five milestones
 
-`run_milestones.py` (run in-container) drives a full end-to-end pass and
-`check_milestones.py` reports how many of these five gates pass (0–5):
+`entrypoints/run_milestones.py` (run in-container) drives a full end-to-end pass
+and `entrypoints/check_milestones.py` reports how many of these five gates pass (0–5):
 
 | # | Milestone |
 |---|-----------|
@@ -114,7 +114,7 @@ checked in (the viewer needs them).
 Run the full milestone harness inside the built image:
 
 ```bash
-docker compose run --rm soccer python run_milestones.py
+docker compose run --rm soccer python -m entrypoints.run_milestones
 ```
 
 ## How the coaching works
@@ -168,7 +168,7 @@ make typecheck  # mypy .
 For the full in-Docker integration gate (real gfootball compiled in the image):
 
 ```bash
-docker compose run --rm soccer python run_milestones.py
+docker compose run --rm soccer python -m entrypoints.run_milestones
 ```
 
 > Always use `uv run --no-sync` (the bare `make` targets already do): a plain `uv run`

@@ -97,12 +97,12 @@ COPY mcp_server/ ./mcp_server/
 COPY agents/ ./agents/
 COPY replay/ ./replay/
 COPY tests/ ./tests/
-COPY check_milestones.py docker_entry.py run_milestones.py ./
+COPY entrypoints/ ./entrypoints/
 RUN mkdir -p /app/match
 
 EXPOSE 8765
 
 # Default: prove gfootball imports + steps headless inside the container.
-# Override with `docker run ... python docker_entry.py` to run the full
-# match + MCP server (see docker_entry.py / README).
+# Override with `docker run ... python -m entrypoints.docker_entry` to run the
+# full match + MCP server (see entrypoints/docker_entry.py / README).
 CMD ["python", "tests/verify_gfootball.py"]

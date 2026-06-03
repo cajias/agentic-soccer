@@ -21,4 +21,4 @@ services:
     # Default service command runs the full match + server. Override on the
     # CLI for one-off checks, e.g.:
     #   docker compose run --rm soccer python tests/verify_gfootball.py
-    command: ["python", "docker_entry.py"]
+    command: ["python", "-m", "entrypoints.docker_entry"]
