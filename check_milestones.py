@@ -18,6 +18,8 @@ import os
 import sys
 from pathlib import Path
 
+from mcp_server.tokens import TEAM_TOKENS
+
 
 # Headless: the engine and pygame must not open a real window or audio device.
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -34,8 +36,9 @@ _M1_REPLAY_PATH = "match/test_replay.jsonl"
 _REPLAY_PATH = "match/replay.jsonl"
 _TOTAL_MILESTONES = 5
 
-# Team tokens (mirror mcp_server.server.TOKENS); every tool call needs one.
-_TOKENS = {"home": "home-secret-abc", "away": "away-secret-xyz"}
+# Team tokens (single source of truth in mcp_server.tokens); every tool call
+# needs one.
+_TOKENS = TEAM_TOKENS
 
 
 def check_m1() -> bool:

@@ -28,17 +28,12 @@ from fastmcp.server.dependencies import get_http_headers
 from starlette.responses import JSONResponse, Response
 
 from mcp_server.game_state import GameState
+from mcp_server.tokens import TOKENS
 
 
 if TYPE_CHECKING:
     from starlette.requests import Request
 
-
-# Token -> team. The simulator/launcher hands each coach exactly one token.
-TOKENS: dict[str, str] = {
-    "home-secret-abc": "home",
-    "away-secret-xyz": "away",
-}
 
 PORT = 8765
 

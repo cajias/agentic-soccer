@@ -17,6 +17,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from mcp_server.tokens import TEAM_TOKENS
+
 
 # Pitch bands a role should occupy (team's attacking-toward-+x frame).
 ZONE_DEFENSIVE = "defensive"
@@ -87,10 +89,11 @@ _AWAY: list[dict[str, Any]] = [
 PLAYER_PERSONALITIES: dict[str, dict[str, Any]] = {p["player_id"]: p for p in (*_HOME, *_AWAY)}
 
 # Coach configuration: system-prompt source and the team token used to
-# authenticate MCP writes. Tokens match mcp_server.server.TOKENS.
+# authenticate MCP writes. Tokens come from the single source of truth in
+# mcp_server.tokens.
 COACH_PERSONALITIES: dict[str, dict[str, Any]] = {
-    "home": {"agent_file": ".claude/agents/coach-home.md", "token": "home-secret-abc"},
-    "away": {"agent_file": ".claude/agents/coach-away.md", "token": "away-secret-xyz"},
+    "home": {"agent_file": ".claude/agents/coach-home.md", "token": TEAM_TOKENS["home"]},
+    "away": {"agent_file": ".claude/agents/coach-away.md", "token": TEAM_TOKENS["away"]},
 }
 
 
