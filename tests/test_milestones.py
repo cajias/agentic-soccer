@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from entrypoints import check_milestones as cm
+from agentic_soccer.entrypoints import check_milestones as cm
 
 
 if TYPE_CHECKING:
@@ -90,8 +90,8 @@ def test_check_m1_success_with_mocked_engine(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setitem(
         sys.modules,
-        "simulator.engine",
-        _fake_module("simulator.engine", SoccerEngine=_FakeEngine),
+        "agentic_soccer.simulator.engine",
+        _fake_module("agentic_soccer.simulator.engine", SoccerEngine=_FakeEngine),
     )
     assert cm.check_m1() is True
 
@@ -117,10 +117,10 @@ def test_check_m5_success_with_mocked_visualizer(monkeypatch: pytest.MonkeyPatch
         return [{"tick": 0}]
 
     monkeypatch.setitem(sys.modules, "pygame", _fake_module("pygame"))
-    monkeypatch.setitem(sys.modules, "replay", _fake_module("replay"))
+    monkeypatch.setitem(sys.modules, "agentic_soccer.replay", _fake_module("agentic_soccer.replay"))
     monkeypatch.setitem(
         sys.modules,
-        "replay.visualizer",
-        _fake_module("replay.visualizer", load_replay=_load_replay),
+        "agentic_soccer.replay.visualizer",
+        _fake_module("agentic_soccer.replay.visualizer", load_replay=_load_replay),
     )
     assert cm.check_m5() is True

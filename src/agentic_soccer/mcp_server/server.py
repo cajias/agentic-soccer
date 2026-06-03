@@ -28,8 +28,8 @@ from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_headers
 from starlette.responses import JSONResponse, Response
 
-from mcp_server.game_state import GameState
-from mcp_server.tokens import TOKENS
+from agentic_soccer.mcp_server.game_state import GameState
+from agentic_soccer.mcp_server.tokens import TOKENS
 
 
 if TYPE_CHECKING:

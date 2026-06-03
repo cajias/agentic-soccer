@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from mcp_server.game_state import GameState
-from simulator.engine import RIGHT, SoccerEngine
+from agentic_soccer.mcp_server.game_state import GameState
+from agentic_soccer.simulator.engine import RIGHT, SoccerEngine
 
 
 if TYPE_CHECKING:

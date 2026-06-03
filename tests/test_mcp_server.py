@@ -28,8 +28,8 @@ from starlette.testclient import TestClient
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-from mcp_server import server
-from mcp_server.server import (
+from agentic_soccer.mcp_server import server
+from agentic_soccer.mcp_server.server import (
     GAME_STATE,
     PORT,
     AuthError,

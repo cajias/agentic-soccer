@@ -24,7 +24,7 @@ import numpy as np
 import pygame
 import pytest
 
-from replay.visualizer import (
+from agentic_soccer.replay.visualizer import (
     HEIGHT,
     HUD_BOTTOM_H,
     HUD_TOP,

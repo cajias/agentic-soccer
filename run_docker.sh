@@ -27,7 +27,7 @@ up() {
   docker run --rm -p 8765:8765 -v "$(pwd)/match:/app/match" \
     -e SDL_VIDEODRIVER=dummy -e MCP_HOST=0.0.0.0 \
     -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
-    "$IMAGE" python -m entrypoints.docker_entry
+    "$IMAGE" python -m agentic_soccer.entrypoints.docker_entry
 }
 
 cmd="${1:-default}"

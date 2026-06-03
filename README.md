@@ -34,7 +34,7 @@ flowchart TB
     end
 
     subgraph host["💻 Host"]
-        viewer["replay/visualizer.py<br/>pygame 'Goal!' view"]
+        viewer["src/agentic_soccer/replay/visualizer.py<br/>pygame 'Goal!' view"]
         homeCoach["Claude Code CLI<br/>home coach"]
         awayCoach["Claude Code CLI<br/>away coach"]
     end
@@ -79,7 +79,7 @@ this works standalone — coaches are optional:
 
 ```bash
 make replay
-# equivalent to: uv run --no-sync python -m replay.visualizer match/replay.jsonl
+# equivalent to: uv run --no-sync python -m agentic_soccer.replay.visualizer match/replay.jsonl
 ```
 
 Verify gfootball actually runs inside the container at any point with `./run_docker.sh verify`.
@@ -95,13 +95,13 @@ override, a ⚡ **COACH** banner flashes and the affected player glows.
 Playback controls: **SPACE** pause/resume · **←/→** step frames · **+/-** speed · **ESC** quit.
 
 Pitch coordinates: `x ∈ [-1, 1]` (x=-1 home goal line, x=+1 away goal line),
-`y ∈ [-0.42, 0.42]`. Generated sprite assets live under `replay/assets/sprites/` and are
+`y ∈ [-0.42, 0.42]`. Generated sprite assets live under `src/agentic_soccer/replay/assets/sprites/` and are
 checked in (the viewer needs them).
 
 ## The five milestones
 
-`entrypoints/run_milestones.py` (run in-container) drives a full end-to-end pass
-and `entrypoints/check_milestones.py` reports how many of these five gates pass (0–5):
+`src/agentic_soccer/entrypoints/run_milestones.py` (run in-container) drives a full end-to-end pass
+and `src/agentic_soccer/entrypoints/check_milestones.py` reports how many of these five gates pass (0–5):
 
 | # | Milestone |
 |---|-----------|
@@ -114,7 +114,7 @@ and `entrypoints/check_milestones.py` reports how many of these five gates pass 
 Run the full milestone harness inside the built image:
 
 ```bash
-docker compose run --rm soccer python -m entrypoints.run_milestones
+docker compose run --rm soccer python -m agentic_soccer.entrypoints.run_milestones
 ```
 
 ## How the coaching works
@@ -168,7 +168,7 @@ make typecheck  # mypy .
 For the full in-Docker integration gate (real gfootball compiled in the image):
 
 ```bash
-docker compose run --rm soccer python -m entrypoints.run_milestones
+docker compose run --rm soccer python -m agentic_soccer.entrypoints.run_milestones
 ```
 
 > Always use `uv run --no-sync` (the bare `make` targets already do): a plain `uv run`

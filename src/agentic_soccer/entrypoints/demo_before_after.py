@@ -14,8 +14,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from mcp_server.server import GAME_STATE
-from simulator.engine import SoccerEngine
+from agentic_soccer.mcp_server.server import GAME_STATE
+from agentic_soccer.simulator.engine import SoccerEngine
 
 
 STEPS = 400

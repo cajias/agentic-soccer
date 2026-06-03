@@ -23,12 +23,19 @@ dev = [
     "pytest-asyncio>=0.23",
 ]
 
+[project.scripts]
+agentic-soccer-run = "agentic_soccer.entrypoints.docker_entry:main"
+agentic-soccer-milestones = "agentic_soccer.entrypoints.run_milestones:main"
+agentic-soccer-check = "agentic_soccer.entrypoints.check_milestones:main"
+agentic-soccer-replay = "agentic_soccer.replay.visualizer:main"
+agentic-soccer-demo = "agentic_soccer.entrypoints.demo_before_after:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["simulator", "mcp_server", "agents", "replay"]
+packages = ["src/agentic_soccer"]
 
 # ---------------------------------------------------------------------------
 # gfootball (Google Research Football) build configuration.

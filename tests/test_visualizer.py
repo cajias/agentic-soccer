@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from replay.visualizer import (
+from agentic_soccer.replay.visualizer import (
     Frame,
     load_replay,
     parse_frame,

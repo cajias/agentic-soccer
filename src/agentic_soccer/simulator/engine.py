@@ -37,9 +37,9 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 
-from replay.logger import ReplayLogger
-from simulator.narrator import narrate
-from simulator.roles import ROLES
+from agentic_soccer.replay.logger import ReplayLogger
+from agentic_soccer.simulator.narrator import narrate
+from agentic_soccer.simulator.roles import ROLES
 
 
 if TYPE_CHECKING:
@@ -179,7 +179,7 @@ class SoccerEngine:
         self.tick = 0
 
         if game_state is None:
-            from mcp_server.server import GAME_STATE  # noqa: PLC0415
+            from agentic_soccer.mcp_server.server import GAME_STATE  # noqa: PLC0415
 
             game_state = GAME_STATE
         self.game_state = game_state

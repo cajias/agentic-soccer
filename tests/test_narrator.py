@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from simulator.narrator import GAME_MODES, Narrator, narrate
+from agentic_soccer.simulator.narrator import GAME_MODES, Narrator, narrate
 
 
 # Eleven default positions per team in the gfootball attacking-toward-+x layout

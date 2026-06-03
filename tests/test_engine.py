@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from simulator.engine import (
+from agentic_soccer.simulator.engine import (
     RIGHT,
     SoccerEngine,
     _direction_action,

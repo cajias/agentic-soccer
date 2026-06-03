@@ -21,7 +21,7 @@ def _start_mcp_server() -> None:
     containerized deployment we must bind ``0.0.0.0``, so we drive ``mcp.run``
     directly with the server's transport/port rather than calling ``main()``.
     """
-    from mcp_server.server import PORT, mcp  # noqa: PLC0415
+    from agentic_soccer.mcp_server.server import PORT, mcp  # noqa: PLC0415
 
     # Bind all interfaces: this is the in-container server entrypoint, and
     # 127.0.0.1 would be unreachable from the host even with -p 8765:8765.
@@ -41,8 +41,8 @@ def _run_match() -> int:
     ``mcp_server.server.GAME_STATE`` singleton the FastMCP server mutates — that
     shared object is the whole reason server + match run in one process.
     """
-    from mcp_server.server import set_replay_logger  # noqa: PLC0415
-    from simulator.engine import SoccerEngine  # noqa: PLC0415
+    from agentic_soccer.mcp_server.server import set_replay_logger  # noqa: PLC0415
+    from agentic_soccer.simulator.engine import SoccerEngine  # noqa: PLC0415
 
     engine = SoccerEngine()
     # Share the engine's replay logger with the MCP server so every override

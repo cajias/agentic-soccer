@@ -47,14 +47,14 @@ _SERVER_BOOT_S = 2.0
 
 def _serve() -> None:
     """Run the FastMCP HTTP server (blocking) — used in a daemon thread."""
-    from mcp_server.server import main as serve  # noqa: PLC0415
+    from agentic_soccer.mcp_server.server import main as serve  # noqa: PLC0415
 
     serve()
 
 
 def _scripted_override(game_state: object) -> None:
     """Fire one override mid-match to prove the coach_cycle path (no LLM)."""
-    from mcp_server.server import update_player_override  # noqa: PLC0415
+    from agentic_soccer.mcp_server.server import update_player_override  # noqa: PLC0415
 
     while getattr(game_state, "tick", 0) < _OVERRIDE_AT_TICK:
         time.sleep(0.05)
@@ -73,8 +73,8 @@ def _scripted_override(game_state: object) -> None:
 
 def main() -> int:
     """Start server + match + scripted override, then run check_milestones."""
-    from mcp_server.server import GAME_STATE, set_replay_logger  # noqa: PLC0415
-    from simulator.engine import SoccerEngine  # noqa: PLC0415
+    from agentic_soccer.mcp_server.server import GAME_STATE, set_replay_logger  # noqa: PLC0415
+    from agentic_soccer.simulator.engine import SoccerEngine  # noqa: PLC0415
 
     threading.Thread(target=_serve, daemon=True, name="mcp-server").start()
     time.sleep(_SERVER_BOOT_S)
@@ -96,7 +96,7 @@ def main() -> int:
     # check_milestones in a fresh process: its M1 gets a clean gfootball env, while
     # M2/M4 reach the still-running server (daemon thread in THIS process) over HTTP.
     result = subprocess.run(
-        [sys.executable, "-m", "entrypoints.check_milestones"],
+        [sys.executable, "-m", "agentic_soccer.entrypoints.check_milestones"],
         capture_output=True,
         text=True,
         check=False,

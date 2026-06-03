@@ -12,7 +12,7 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from simulator.roles import ROLES
+from agentic_soccer.simulator.roles import ROLES
 
 
 if TYPE_CHECKING:

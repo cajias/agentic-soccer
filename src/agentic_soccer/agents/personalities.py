@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mcp_server.tokens import TEAM_TOKENS
+from agentic_soccer.mcp_server.tokens import TEAM_TOKENS
 
 
 # Pitch bands a role should occupy (team's attacking-toward-+x frame).

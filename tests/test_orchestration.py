@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import agents.coach_loop as coach_loop_module
-from agents import coach_session
-from entrypoints import check_milestones
+import agentic_soccer.agents.coach_loop as coach_loop_module
+from agentic_soccer.agents import coach_session
+from agentic_soccer.entrypoints import check_milestones
 
 
 if TYPE_CHECKING:

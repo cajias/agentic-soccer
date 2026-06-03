@@ -6,16 +6,16 @@ import json
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
-from agents.coach_loop import (
+from agentic_soccer.agents.coach_loop import (
     MAX_ALERTS_PER_CYCLE,
     decide_alerts,
     heuristic_alerts,
     parse_player_behaviors,
     run_coach_cycle,
 )
-from agents.personalities import PLAYER_PERSONALITIES, players_for_team
-from agents.player_agent import MCPHttpClient, player_agent
-from replay.logger import ReplayLogger
+from agentic_soccer.agents.personalities import PLAYER_PERSONALITIES, players_for_team
+from agentic_soccer.agents.player_agent import MCPHttpClient, player_agent
+from agentic_soccer.replay.logger import ReplayLogger
 
 
 if TYPE_CHECKING:

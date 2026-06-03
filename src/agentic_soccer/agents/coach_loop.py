@@ -27,7 +27,7 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, cast
 
-from agents.personalities import (
+from agentic_soccer.agents.personalities import (
     COACH_PERSONALITIES,
     ZONE_ATTACKING,
     ZONE_DEFENSIVE,
@@ -36,14 +36,14 @@ from agents.personalities import (
     player_by_index,
     players_for_team,
 )
-from agents.player_agent import MCPHttpClient, player_agent
+from agentic_soccer.agents.player_agent import MCPHttpClient, player_agent
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from agents.player_agent import LLMClient, MatchClient
-    from replay.logger import ReplayLogger
+    from agentic_soccer.agents.player_agent import LLMClient, MatchClient
+    from agentic_soccer.replay.logger import ReplayLogger
 
 
 COACH_INTERVAL_S = 15.0

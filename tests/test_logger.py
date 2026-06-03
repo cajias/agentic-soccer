@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from replay.logger import ReplayLogger
+from agentic_soccer.replay.logger import ReplayLogger
 
 
 if TYPE_CHECKING:

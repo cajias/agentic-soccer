@@ -72,6 +72,6 @@ max-statements = 50
 convention = "google"
 
 [lint.isort]
-known-first-party = ["simulator", "mcp_server", "agents", "replay"]
+known-first-party = ["agentic_soccer"]
 force-single-line = false
 lines-after-imports = 2

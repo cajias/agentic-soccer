@@ -18,7 +18,7 @@ import os
 import sys
 from pathlib import Path
 
-from mcp_server.tokens import TEAM_TOKENS
+from agentic_soccer.mcp_server.tokens import TEAM_TOKENS
 
 
 # Headless: the engine and pygame must not open a real window or audio device.
@@ -44,7 +44,7 @@ _TOKENS = TEAM_TOKENS
 def check_m1() -> bool:
     """M1: Headless match runs to completion with a score."""
     try:
-        from simulator.engine import SoccerEngine  # noqa: PLC0415 - optional, lazy
+        from agentic_soccer.simulator.engine import SoccerEngine  # noqa: PLC0415 - optional, lazy
 
         engine = SoccerEngine(match_steps=_M1_STEPS, replay_path=_M1_REPLAY_PATH)
         stats = engine.run()
@@ -128,7 +128,7 @@ def check_m5() -> bool:
     try:
         import pygame  # noqa: F401, PLC0415 - imported only to confirm it installs
 
-        from replay.visualizer import load_replay  # noqa: PLC0415 - optional, lazy
+        from agentic_soccer.replay.visualizer import load_replay  # noqa: PLC0415 - optional, lazy
 
         frames = load_replay(_REPLAY_PATH)
     except Exception as e:  # noqa: BLE001 - any failure means the milestone is unmet

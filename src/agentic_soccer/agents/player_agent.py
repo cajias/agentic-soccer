@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 import anthropic
 import requests
 
-from agents.personalities import (
+from agentic_soccer.agents.personalities import (
     COACH_PERSONALITIES,
     PLAYER_PERSONALITIES,
     load_system_prompt,

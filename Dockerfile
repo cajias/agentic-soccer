@@ -92,17 +92,18 @@ RUN pip install "gym==0.22.0" six \
         "fastmcp>=2.0" "anthropic>=0.40" "pygame>=2.6" requests
 
 # Project code (see .dockerignore for exclusions). match/ is a mounted volume.
-COPY simulator/ ./simulator/
-COPY mcp_server/ ./mcp_server/
-COPY agents/ ./agents/
-COPY replay/ ./replay/
+# The packages live under src/agentic_soccer/; PYTHONPATH makes the
+# agentic_soccer package importable without a wheel install (the container
+# analog of the host's editable .pth pointing at src/).
+COPY src/ ./src/
 COPY tests/ ./tests/
-COPY entrypoints/ ./entrypoints/
+ENV PYTHONPATH=/app/src
 RUN mkdir -p /app/match
 
 EXPOSE 8765
 
 # Default: prove gfootball imports + steps headless inside the container.
-# Override with `docker run ... python -m entrypoints.docker_entry` to run the
-# full match + MCP server (see entrypoints/docker_entry.py / README).
+# Override with `docker run ... python -m agentic_soccer.entrypoints.docker_entry`
+# to run the full match + MCP server
+# (see src/agentic_soccer/entrypoints/docker_entry.py / README).
 CMD ["python", "tests/verify_gfootball.py"]

@@ -29,8 +29,8 @@ typecheck:
 # real integration gate — it requires the image to be built first
 # (see Dockerfile / run_docker.sh / build_docker.txt).
 e2e-docker:
-	docker compose run --rm soccer python -m entrypoints.run_milestones
+	docker compose run --rm soccer python -m agentic_soccer.entrypoints.run_milestones
 
 # Replay a recorded match in the pygame viewer (needs a display).
 replay:
-	uv run --no-sync python -m replay.visualizer match/replay.jsonl
+	uv run --no-sync python -m agentic_soccer.replay.visualizer match/replay.jsonl

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from replay.logger import ReplayLogger
+    from agentic_soccer.replay.logger import ReplayLogger
 
 
 # Team -> token. Mirrors ``mcp_server.server.TOKENS``; a coach holds exactly one.
@@ -54,9 +54,9 @@ def run_coach(
         msg = f"unknown team {team!r}; expected one of {tuple(TOKENS)}"
         raise ValueError(msg)
 
-    from agents.coach_loop import coach_loop  # noqa: PLC0415
-    from mcp_server.server import GAME_STATE  # noqa: PLC0415
-    from replay.logger import ReplayLogger  # noqa: PLC0415
+    from agentic_soccer.agents.coach_loop import coach_loop  # noqa: PLC0415
+    from agentic_soccer.mcp_server.server import GAME_STATE  # noqa: PLC0415
+    from agentic_soccer.replay.logger import ReplayLogger  # noqa: PLC0415
 
     logger = replay_logger if replay_logger is not None else ReplayLogger(replay_path)
 
