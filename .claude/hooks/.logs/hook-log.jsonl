@@ -50,3 +50,7 @@
 {"ts":"2026-05-31T20:35:28.530Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":".key"}
 {"ts":"2026-05-31T20:42:29.081Z","hook":"privacy-block","action":"warn","tool":"Bash","pattern":"secret"}
 {"ts":"2026-05-31T20:47:43.172Z","hook":"stop-notify","projectName":"agentic-soccer","duration":"23h 0m","iterations":0}
+{"ts":"2026-06-01T21:02:31.427Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":"main"}
+{"ts":"2026-06-01T21:03:11.329Z","hook":"session-init","projectRoot":"/Users/rc/Projects/workspace/agentic-soccer","gitBranch":"main"}
+{"ts":"2026-06-01T21:36:15.257Z","hook":"stop-notify","projectName":"agentic-soccer","duration":"33m 3s","iterations":0}
+{"ts":"2026-06-01T21:36:16.198Z","hook":"stop-notify","projectName":"agentic-soccer","duration":"33m 44s","iterations":0}
